@@ -105,6 +105,38 @@ fn position_menu_at_cursor(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Shift a window up/left so it fits within its monitor's visible work area,
+/// keeping the top-left origin otherwise fixed (PLAN.md §3).
+fn clamp_window_to_monitor(win: &tauri::WebviewWindow) -> tauri::Result<()> {
+    let pos = win.outer_position()?;
+    let size = win.outer_size()?;
+    let monitor = match win.current_monitor()? {
+        Some(m) => Some(m),
+        None => win.primary_monitor()?,
+    };
+    if let Some(m) = monitor {
+        let area = m.work_area();
+        let (wx, wy) = (area.position.x, area.position.y);
+        let (ww, wh) = (area.size.width as i32, area.size.height as i32);
+        let (w, h) = (size.width as i32, size.height as i32);
+        let x = pos.x.min(wx + ww - w).max(wx);
+        let y = pos.y.min(wy + wh - h).max(wy);
+        if x != pos.x || y != pos.y {
+            win.set_position(PhysicalPosition::new(x, y))?;
+        }
+    }
+    Ok(())
+}
+
+/// Re-clamp the (grown) menu window to the monitor. Called by the frontend
+/// after it resizes the window to fit its content (PLAN.md §3, §11 milestone 8).
+#[tauri::command]
+fn clamp_menu(app: AppHandle) {
+    if let Some(win) = app.get_webview_window(MENU_LABEL) {
+        let _ = clamp_window_to_monitor(&win);
+    }
+}
+
 /// Show the menu overlay at the cursor and hand it keyboard focus.
 fn show_menu(app: &AppHandle) {
     let _ = position_menu_at_cursor(app);
@@ -181,6 +213,7 @@ pub fn run() {
             hide_menu,
             open_settings_window,
             set_activation_hotkey,
+            clamp_menu,
             commands::list_children_cmd,
             commands::get_node_cmd,
             commands::get_item_content_cmd,

@@ -21,6 +21,7 @@ export const api = {
   moveNode: (id: number, newParentId: number | null, newPosition: number) =>
     invoke<void>("move_node_cmd", { id, newParentId, newPosition }),
   hideMenu: () => invoke<void>("hide_menu"),
+  clampMenu: () => invoke<void>("clamp_menu"),
 
   // Clipboard (PLAN.md §6). All operate on a single item id.
   copyItem: (id: number) => invoke<void>("copy_item_to_clipboard_cmd", { itemId: id }),

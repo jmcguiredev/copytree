@@ -72,11 +72,18 @@ unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
   `body { zoom }` (window `setSize` multiplied by `uiScale` to match), Content Display Scale via
   `contentScale`. Capability gains `store:default`.
 
-Milestones 8–9 (monitor-clamped resize, bundle) are still to build. Not yet wired: `NewContent`
-(JS-facing) is still text-only (image/gif come from paste, not the add modal); window resize
-doesn't re-clamp to the monitor yet (M8). Settings changes apply to the menu on its next
-open/focus (re-read), not via a live cross-window event — sufficient since the overlay is
-hidden between uses.
+- **M8** — polish & window resize. After the frontend grows the menu window (`setSize`) it
+  calls the `clamp_menu` command; `clamp_window_to_monitor` shifts the window up/left to fit the
+  monitor's `work_area` (physical px), keeping the top-left origin otherwise fixed so growth
+  never runs off-screen. The drag handle disables double-click-maximize (`maximizable: false` on
+  the window + `onDoubleClick preventDefault`). A subtle scale/opacity open animation
+  (`element.animate`) plays on each show, retriggered from the focus/refresh handler.
+
+Milestone 9 (bundle: `pnpm tauri build`, verify the `.dmg` / drag-to-Applications / unsigned
+first-open, README) is the remainder. Not yet wired: `NewContent` (JS-facing) is still text-only
+(image/gif come from paste, not the add modal). Settings changes apply to the menu on its next
+open/focus (re-read), not via a live cross-window event — sufficient since the overlay is hidden
+between uses.
 
 To display image/gif blobs the frontend uses `convertFileSrc`, which needs the
 `security.assetProtocol` scope to cover the file — keep blobs under `$APPDATA/blobs/`.

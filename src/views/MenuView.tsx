@@ -16,6 +16,7 @@ const RESULTS_W = 320;
 
 export default function MenuView() {
   const searchRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const columnCount = useMenu((s) => s.columns.length);
   const selectedItemId = useMenu((s) => s.selectedItemId);
   const searchActive = useMenu((s) => s.searchQuery.trim().length > 0);
@@ -31,6 +32,14 @@ export default function MenuView() {
       void init();
       void loadSettings().then(applyAppearance);
       searchRef.current?.focus();
+      // Subtle open animation each time the overlay is shown (PLAN.md §11.8).
+      panelRef.current?.animate(
+        [
+          { opacity: 0, transform: "scale(0.98)" },
+          { opacity: 1, transform: "scale(1)" },
+        ],
+        { duration: 110, easing: "ease-out" },
+      );
     };
     refresh();
     const win = getCurrentWindow();
@@ -138,18 +147,23 @@ export default function MenuView() {
     const width = searchActive
       ? 16 + RESULTS_W + content
       : Math.max(320, 16 + columnCount * COL_W + content);
-    // Body zoom scales the DOM by uiScale; grow the window by the same factor.
-    void getCurrentWindow().setSize(new LogicalSize(width * uiScale, 420 * uiScale));
+    // Body zoom scales the DOM by uiScale; grow the window by the same factor,
+    // then re-clamp to the monitor so growth never runs off-screen (§3, §11.8).
+    void getCurrentWindow()
+      .setSize(new LogicalSize(width * uiScale, 420 * uiScale))
+      .then(() => api.clampMenu());
   }, [columnCount, selectedItemId, searchActive, uiScale]);
 
   return (
     <div
+      ref={panelRef}
       className="flex h-screen w-screen flex-col overflow-hidden rounded-xl border p-2"
       style={{ background: "var(--acm-bg)", borderColor: "var(--acm-border)" }}
     >
       <div className="flex items-center gap-2">
         <div
           data-tauri-drag-region
+          onDoubleClick={(e) => e.preventDefault()}
           className="flex h-8 w-6 shrink-0 cursor-grab items-center justify-center rounded-md"
           style={{ background: "var(--acm-bg-elevated)" }}
           title="Drag to move"
