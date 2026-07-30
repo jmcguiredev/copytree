@@ -4,12 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-Scaffolded, and **milestone 1** (PLAN.md §11) is implemented: tray icon with Settings/Quit,
-`Accessory` activation policy (no dock icon), a global hotkey (**Cmd+Shift+V**, a placeholder
-default — see PLAN.md §12) that shows the transparent `menu` overlay at the cursor clamped to
-the monitor work area, Escape/blur to hide, and a dark-first Tailwind baseline. Milestones 2–9
-(SQLite/FTS5, the cascading menu UI, blob content, clipboard/undo, search, settings, resize,
-bundle) are still to build.
+Scaffolded, with **milestones 1–2** (PLAN.md §11) implemented:
+- **M1** — tray icon with Settings/Quit, `Accessory` activation policy (no dock icon), a global
+  hotkey (**Cmd+Shift+V**, a placeholder default — see PLAN.md §12) that shows the transparent
+  `menu` overlay at the cursor clamped to the monitor work area, Escape/blur to hide, dark-first
+  Tailwind baseline.
+- **M2** — SQLite (`rusqlite` bundled) opened under `app_data_dir()/acm.db` as managed `Db`
+  state; schema + FTS5 index + sync triggers; tree CRUD commands; a seeded sample tree on first
+  run. Backend modules: `db.rs` (schema/migrations/pragmas), `models.rs`, `commands.rs`
+  (testable fns + `#[tauri::command]` wrappers). Unit tests cover CRUD, FTS name-first ranking,
+  rename reindex, and cascade-delete cleanup — run with `cd src-tauri && cargo test`.
+
+Note: the FTS5 table is a **regular** (content-storing) table, not the contentless one in
+PLAN.md §4 — see the rationale comment in `db.rs`. Ranking (`bm25(item_search, 10.0, 1.0)`) is
+unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
+
+Milestones 3–9 (the cascading menu UI, blob content, clipboard/undo, search UI, settings,
+resize, bundle) are still to build. Item image/gif content is not wired yet — `NewContent` only
+has a `Text` variant so far (blobs land in M4).
 
 `PLAN.md` is the source of truth. Read it before doing any work — it defines the data
 model, command surface, UI behavior, and the milestone build order (§11). Decisions marked

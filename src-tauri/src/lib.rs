@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
@@ -5,6 +7,12 @@ use tauri::{
     WindowEvent,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+
+mod commands;
+mod db;
+mod models;
+
+use db::Db;
 
 /// Window labels. The `menu` window is the cascading overlay; `settings` is a
 /// normal decorated window created on demand from the tray.
@@ -92,6 +100,16 @@ pub fn run() {
                 .handle()
                 .set_activation_policy(ActivationPolicy::Accessory);
 
+            // Open the item database under the app data dir, create the blobs
+            // directory, seed a sample tree on first run, and share the
+            // connection as managed state (PLAN.md §4, §11 milestone 2).
+            let data_dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&data_dir)?;
+            std::fs::create_dir_all(data_dir.join("blobs"))?;
+            let mut conn = db::open(&data_dir.join("acm.db"))?;
+            commands::seed_if_empty(&mut conn)?;
+            app.manage(Db(Mutex::new(conn)));
+
             // Tray icon with the Settings / Quit menu.
             let settings_item =
                 MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
@@ -132,7 +150,17 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![hide_menu, open_settings_window])
+        .invoke_handler(tauri::generate_handler![
+            hide_menu,
+            open_settings_window,
+            commands::list_children_cmd,
+            commands::get_node_cmd,
+            commands::create_group_cmd,
+            commands::create_item_cmd,
+            commands::rename_node_cmd,
+            commands::delete_node_cmd,
+            commands::move_node_cmd,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
