@@ -61,6 +61,7 @@ interface MenuState {
 
   addGroup: (name: string) => Promise<void>;
   addItem: (name: string, text: string) => Promise<void>;
+  addFileItem: (name: string, path: string) => Promise<void>;
   renameFocused: (name: string) => Promise<void>;
   removeFocused: () => Promise<void>;
   refreshColumn: (col: number) => Promise<void>;
@@ -220,6 +221,15 @@ export const useMenu = create<MenuState>((set, get) => ({
     const raw = get().columns[col]?.parentId ?? null;
     const parentId = raw === RECENT_ID ? null : raw;
     const node = await api.createItem(parentId, name, { type: "text", text });
+    await get().refreshColumn(col);
+    set({ focus: { col, id: node.id } });
+  },
+
+  addFileItem: async (name, path) => {
+    const col = get().focus.col;
+    const raw = get().columns[col]?.parentId ?? null;
+    const parentId = raw === RECENT_ID ? null : raw;
+    const node = await api.createFileItem(parentId, name, path);
     await get().refreshColumn(col);
     set({ focus: { col, id: node.id } });
   },

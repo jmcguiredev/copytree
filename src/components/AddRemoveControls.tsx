@@ -6,6 +6,7 @@ import { AddModal, ConfirmDeleteModal, RenameModal } from "./modals";
 export default function AddRemoveControls() {
   const addGroup = useMenu((s) => s.addGroup);
   const addItem = useMenu((s) => s.addItem);
+  const addFileItem = useMenu((s) => s.addFileItem);
   const renameFocused = useMenu((s) => s.renameFocused);
   const removeFocused = useMenu((s) => s.removeFocused);
   const target = useMenu(focusedNode);
@@ -48,6 +49,7 @@ export default function AddRemoveControls() {
         onOpenChange={setAddOpen}
         onAddGroup={(name) => void addGroup(name)}
         onAddItem={(name, text) => void addItem(name, text)}
+        onAddFileItem={(name, path) => void addFileItem(name, path)}
       />
       <RenameModal
         open={renameOpen}

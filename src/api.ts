@@ -15,6 +15,8 @@ export const api = {
     invoke<Node>("create_group_cmd", { parentId, name }),
   createItem: (parentId: number | null, name: string, content: NewContent) =>
     invoke<Node>("create_item_cmd", { parentId, name, content }),
+  createFileItem: (parentId: number | null, name: string, path: string) =>
+    invoke<Node>("create_file_item_cmd", { parentId, name, path }),
   renameNode: (id: number, name: string) =>
     invoke<void>("rename_node_cmd", { id, name }),
   deleteNode: (id: number) => invoke<void>("delete_node_cmd", { id }),

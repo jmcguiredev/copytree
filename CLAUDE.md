@@ -84,11 +84,16 @@ unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
   features, the keyboard map, the GIF-destination caveat, dev/test/build commands, the unsigned
   first-open flow (right-click→Open / `xattr -dr com.apple.quarantine`), and the data locations.
 
-**All nine PLAN.md milestones are implemented.** Remaining follow-ups (not blocking): `NewContent`
-(JS-facing) is still text-only, so image/gif items are created only by paste/seed, not the add
-modal; settings apply to the menu on its next open/focus (re-read), not via a live cross-window
-event (fine while the overlay is hidden between uses); no blob GC (blobs are content-addressed
-and shared, so overwrite intentionally keeps them). Verifying the running-app behavior
+**All nine PLAN.md milestones are implemented**, plus a post-M9 addition: the add modal can
+create image/gif items from a file. The modal (`components/modals.tsx`) offers Text / Image·GIF /
+Group; Image·GIF uses the `@tauri-apps/plugin-dialog` native picker and calls
+`create_file_item_cmd`, which reads the file, keeps GIF bytes raw (magic-number detected) to
+preserve animation and transcodes other images to PNG, then stores a blob item. Needs the
+`tauri-plugin-dialog` plugin + `dialog:default` capability.
+
+Remaining follow-ups (not blocking): settings apply to the menu on its next open/focus (re-read),
+not via a live cross-window event (fine while the overlay is hidden between uses); no blob GC
+(blobs are content-addressed and shared, so overwrite intentionally keeps them). Verifying the running-app behavior
 (hotkey/tray/overlay interaction, real clipboard, drag-to-Applications, Gatekeeper first-open) is
 manual — the automated coverage is `cargo test` (data layer, FTS, clipboard undo/redo) plus
 `tsc`/`vite build`.

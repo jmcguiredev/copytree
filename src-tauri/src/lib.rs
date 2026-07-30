@@ -151,6 +151,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Menubar-only app: no dock icon.
             #[cfg(target_os = "macos")]
@@ -221,6 +222,7 @@ pub fn run() {
             commands::get_recent_cmd,
             commands::create_group_cmd,
             commands::create_item_cmd,
+            commands::create_file_item_cmd,
             commands::rename_node_cmd,
             commands::delete_node_cmd,
             commands::move_node_cmd,

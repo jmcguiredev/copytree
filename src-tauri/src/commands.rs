@@ -682,6 +682,39 @@ pub fn get_item_content_cmd(
         .ok_or_else(|| format!("item {item_id} not found"))
 }
 
+/// Create an image or gif item from a file on disk (chosen via the add modal's
+/// file picker). GIFs keep their raw bytes to preserve animation; other images
+/// are transcoded to PNG for a consistent still representation.
+#[tauri::command]
+pub fn create_file_item_cmd(
+    app: AppHandle,
+    db: State<Db>,
+    parent_id: Option<i64>,
+    name: String,
+    path: String,
+) -> CmdResult<Node> {
+    let blobs_dir = app_blobs_dir(&app)?;
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let dims = image::load_from_memory(&bytes)
+        .ok()
+        .map(|i| (i.width() as i64, i.height() as i64));
+    let is_gif = bytes.len() >= 6 && (&bytes[0..6] == b"GIF87a" || &bytes[0..6] == b"GIF89a");
+
+    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
+    let node = if is_gif {
+        let blob = blobs::store_bytes(&blobs_dir, &bytes, "gif").map_err(|e| e.to_string())?;
+        create_blob_item(&mut conn, parent_id, &name, "gif", &blob, dims)
+    } else {
+        let img = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
+        let mut png = Vec::new();
+        img.write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .map_err(|e| e.to_string())?;
+        let blob = blobs::store_bytes(&blobs_dir, &png, "png").map_err(|e| e.to_string())?;
+        create_blob_item(&mut conn, parent_id, &name, "image", &blob, dims)
+    };
+    node.map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn rename_node_cmd(db: State<Db>, id: i64, name: String) -> CmdResult<()> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
