@@ -79,11 +79,19 @@ unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
   the window + `onDoubleClick preventDefault`). A subtle scale/opacity open animation
   (`element.animate`) plays on each show, retriggered from the focus/refresh handler.
 
-Milestone 9 (bundle: `pnpm tauri build`, verify the `.dmg` / drag-to-Applications / unsigned
-first-open, README) is the remainder. Not yet wired: `NewContent` (JS-facing) is still text-only
-(image/gif come from paste, not the add modal). Settings changes apply to the menu on its next
-open/focus (re-read), not via a live cross-window event — sufficient since the overlay is hidden
-between uses.
+- **M9** — bundle. `pnpm tauri build` produces `ACM.app` and `ACM_0.1.0_aarch64.dmg` under
+  `src-tauri/target/release/bundle/` (unsigned; `category: "Utility"`). README (§10) documents
+  features, the keyboard map, the GIF-destination caveat, dev/test/build commands, the unsigned
+  first-open flow (right-click→Open / `xattr -dr com.apple.quarantine`), and the data locations.
+
+**All nine PLAN.md milestones are implemented.** Remaining follow-ups (not blocking): `NewContent`
+(JS-facing) is still text-only, so image/gif items are created only by paste/seed, not the add
+modal; settings apply to the menu on its next open/focus (re-read), not via a live cross-window
+event (fine while the overlay is hidden between uses); no blob GC (blobs are content-addressed
+and shared, so overwrite intentionally keeps them). Verifying the running-app behavior
+(hotkey/tray/overlay interaction, real clipboard, drag-to-Applications, Gatekeeper first-open) is
+manual — the automated coverage is `cargo test` (data layer, FTS, clipboard undo/redo) plus
+`tsc`/`vite build`.
 
 To display image/gif blobs the frontend uses `convertFileSrc`, which needs the
 `security.assetProtocol` scope to cover the file — keep blobs under `$APPDATA/blobs/`.
