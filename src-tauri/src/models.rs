@@ -14,10 +14,31 @@ pub struct Node {
     pub last_used_at: Option<i64>,
 }
 
-/// Content supplied when creating an item. Image/gif variants arrive with the
-/// blob-storage work in milestone 4; only text is wired up so far.
+/// Content supplied from the frontend when creating an item. Image/gif items
+/// are produced by pasting (M5) or seeding, not via this JS-facing enum.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum NewContent {
     Text { text: String },
+}
+
+/// An item's stored content, returned to the frontend for display (PLAN.md §5.5,
+/// §8). Blob variants carry the absolute filesystem path so the frontend can
+/// render them through the Tauri asset protocol (`convertFileSrc`).
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum ItemContent {
+    Text {
+        text: String,
+    },
+    Image {
+        path: String,
+        width: Option<i64>,
+        height: Option<i64>,
+    },
+    Gif {
+        path: String,
+        width: Option<i64>,
+        height: Option<i64>,
+    },
 }

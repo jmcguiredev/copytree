@@ -1,31 +1,67 @@
+import { useEffect, useState } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { api } from "../api";
 import { useMenu } from "../store";
-import type { Node } from "../types";
+import type { ItemContent } from "../types";
 
-// Placeholder content pane (PLAN.md §5.5). Real text/image/gif rendering,
-// scrolling, and the Content Display Scale arrive with blob storage in M4.
+// Content pane (PLAN.md §5.5): text is 2-D scrollable and monospace; image/gif
+// blobs render via the Tauri asset protocol (an <img> animates GIFs for free).
+// Content Display Scale drives the text/image sizing.
 export default function ContentPane() {
   const selectedItemId = useMenu((s) => s.selectedItemId);
-  const columns = useMenu((s) => s.columns);
+  const scale = useMenu((s) => s.contentScale);
+  const [content, setContent] = useState<ItemContent | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedItemId == null) {
+      setContent(null);
+      return;
+    }
+    let live = true;
+    setError(null);
+    api
+      .getItemContent(selectedItemId)
+      .then((c) => live && setContent(c))
+      .catch((e) => live && setError(String(e)));
+    return () => {
+      live = false;
+    };
+  }, [selectedItemId]);
 
   if (selectedItemId == null) return null;
 
-  let item: Node | undefined;
-  for (const c of columns) {
-    const found = c.nodes.find((n) => n.id === selectedItemId);
-    if (found) item = found;
-  }
-
   return (
     <div
-      className="flex w-[320px] shrink-0 flex-col gap-2 overflow-auto p-3"
+      className="flex w-[320px] shrink-0 flex-col overflow-hidden"
       style={{ background: "var(--acm-bg-elevated)" }}
     >
-      <div className="text-sm font-medium" style={{ color: "var(--acm-fg)" }}>
-        {item?.name ?? "Item"}
-      </div>
-      <div className="text-xs" style={{ color: "var(--acm-fg-muted)" }}>
-        Content preview lands in milestone 4 (text / image / gif).
-      </div>
+      {error && (
+        <div className="p-3 text-xs" style={{ color: "#e07a72" }}>
+          {error}
+        </div>
+      )}
+      {content?.type === "text" && (
+        <pre
+          className="min-h-0 flex-1 overflow-auto p-3 font-mono whitespace-pre"
+          style={{ color: "var(--acm-fg)", fontSize: `${13 * scale}px`, lineHeight: 1.5 }}
+        >
+          {content.text}
+        </pre>
+      )}
+      {(content?.type === "image" || content?.type === "gif") && (
+        <div className="min-h-0 flex-1 overflow-auto p-3">
+          <img
+            src={convertFileSrc(content.path)}
+            alt=""
+            style={{
+              width: content.width ? content.width * scale : undefined,
+              maxWidth: content.width ? undefined : "100%",
+              imageRendering: "auto",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

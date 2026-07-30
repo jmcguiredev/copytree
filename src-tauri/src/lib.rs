@@ -8,6 +8,7 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
+mod blobs;
 mod commands;
 mod db;
 mod models;
@@ -104,10 +105,11 @@ pub fn run() {
             // directory, seed a sample tree on first run, and share the
             // connection as managed state (PLAN.md §4, §11 milestone 2).
             let data_dir = app.path().app_data_dir()?;
+            let blobs_dir = data_dir.join("blobs");
             std::fs::create_dir_all(&data_dir)?;
-            std::fs::create_dir_all(data_dir.join("blobs"))?;
+            std::fs::create_dir_all(&blobs_dir)?;
             let mut conn = db::open(&data_dir.join("acm.db"))?;
-            commands::seed_if_empty(&mut conn)?;
+            commands::seed_if_empty(&mut conn, &blobs_dir)?;
             app.manage(Db(Mutex::new(conn)));
 
             // Tray icon with the Settings / Quit menu.
@@ -155,6 +157,7 @@ pub fn run() {
             open_settings_window,
             commands::list_children_cmd,
             commands::get_node_cmd,
+            commands::get_item_content_cmd,
             commands::create_group_cmd,
             commands::create_item_cmd,
             commands::rename_node_cmd,

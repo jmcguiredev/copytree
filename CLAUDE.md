@@ -27,11 +27,23 @@ unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
   Enter selects), hover-to-expand, re-init on window re-show (`onFocusChanged`), and
   content-driven `setSize`. Frontend routes by window label (`App.tsx`).
 
-Milestones 4–9 (blob content + real content pane, clipboard/undo, search UI, settings window,
-monitor-clamped resize, bundle) are still to build. Not yet wired: `NewContent` has only a
-`Text` variant (image/gif blobs = M4); the `ContentPane` is a placeholder; `SearchBar` doesn't
-filter yet (search-results mode = M6); the Recent Items virtual group (§5.1) is deferred to M6;
-window resize doesn't re-clamp to the monitor yet (M8).
+- **M4** — item content. `blobs.rs` stores payloads at `blobs/<sha256>.<ext>` with content
+  dedup; `get_item_content` returns `ItemContent` (text, or image/gif with an absolute blob path
+  + dimensions); `ContentPane` renders text (2-D scrollable, monospace) and image/gif via the
+  Tauri asset protocol (`convertFileSrc`). Content Display Scale lives in the store
+  (`contentScale`, default 1) pending Settings in M7. The seed now includes a generated sample
+  PNG under a "Samples" group. Requires the tauri `protocol-asset` feature +
+  `security.assetProtocol` (scope `$APPDATA/blobs/**`) in `tauri.conf.json`. Rust unit tests
+  cover text roundtrip and blob dedup + image content read-back.
+
+Milestones 5–9 (clipboard/undo, search UI, settings window, monitor-clamped resize, bundle) are
+still to build. Not yet wired: image/gif items are only created by the seed so far (paste =
+M5); `NewContent` (JS-facing) is still text-only; `SearchBar` doesn't filter (search-results
+mode = M6); the Recent Items virtual group (§5.1) is deferred to M6; window resize doesn't
+re-clamp to the monitor yet (M8).
+
+To display image/gif blobs the frontend uses `convertFileSrc`, which needs the
+`security.assetProtocol` scope to cover the file — keep blobs under `$APPDATA/blobs/`.
 
 Frontend↔Rust: Tauri maps camelCase JS arg keys to snake_case Rust params. Any new JS call to a
 mutating core window/webview API needs its permission added to `capabilities/default.json`

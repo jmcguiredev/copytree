@@ -14,6 +14,8 @@ interface MenuState {
   focus: { col: number; id: number | null };
   /** Item whose content pane is shown, if any. */
   selectedItemId: number | null;
+  /** Content Display Scale (PLAN.md §7); driven by Settings in M7. */
+  contentScale: number;
 
   init: () => Promise<void>;
   reset: () => void;
@@ -44,6 +46,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   columns: [],
   focus: { col: 0, id: null },
   selectedItemId: null,
+  contentScale: 1,
 
   init: async () => {
     const nodes = await api.listChildren(null);

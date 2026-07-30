@@ -10,5 +10,12 @@ export interface Node {
   lastUsedAt: number | null;
 }
 
-// Only text is wired up so far; image/gif arrive with blob storage (M4).
+// Only text is created from the frontend; image/gif items come from pasting (M5).
 export type NewContent = { type: "text"; text: string };
+
+// An item's stored content for display. Blob variants carry an absolute path
+// to be rendered through the Tauri asset protocol.
+export type ItemContent =
+  | { type: "text"; text: string }
+  | { type: "image"; path: string; width: number | null; height: number | null }
+  | { type: "gif"; path: string; width: number | null; height: number | null };
