@@ -9,11 +9,16 @@ use tauri::{AppHandle, Manager, State};
 use crate::blobs::{self, BlobInfo};
 use crate::clipboard::{self, Pasteboard};
 use crate::db::Db;
-use crate::models::{ItemContent, NewContent, Node};
+use crate::models::{ItemContent, NewContent, Node, SearchHit};
 
 /// Undo/redo retention window (PLAN.md §6). Becomes the "Overwritten Item
 /// Persistence Duration" setting in M7; `Duration::ZERO` disables undo/redo.
 const UNDO_TTL: Duration = Duration::from_secs(60);
+
+/// Recent Items defaults (PLAN.md §7); become settings in M7. `0` recent items
+/// disables the list; `0` persistence days means no time filter.
+const MAX_RECENT: i64 = 25;
+const RECENT_DAYS: i64 = 1;
 
 /// Commands return a stringified error so it crosses the IPC boundary as JSON.
 type CmdResult<T> = Result<T, String>;
@@ -172,6 +177,104 @@ pub fn get_item_content(
         },
     )
     .optional()
+}
+
+// ---- search & recent (PLAN.md §4, §5.1, §5.2) ------------------------------
+
+/// Turn arbitrary user input into a safe FTS5 MATCH expression: each
+/// alphanumeric token becomes a quoted prefix term (`"tok"*`), so FTS5 operators
+/// in the input are treated literally and typing is incremental / Spotlight-like.
+fn fts_query(raw: &str) -> String {
+    raw.split(|c: char| !c.is_alphanumeric())
+        .filter(|t| !t.is_empty())
+        .map(|t| format!("\"{}\"*", t.to_lowercase()))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Breadcrumb of ancestor group names, root-first, e.g. "Code Snippets / Rust".
+fn ancestor_path(conn: &Connection, mut parent_id: Option<i64>) -> rusqlite::Result<String> {
+    let mut names = Vec::new();
+    let mut guard = 0;
+    while let Some(pid) = parent_id {
+        guard += 1;
+        if guard > 64 {
+            break; // defensive against cycles
+        }
+        let row: Option<(String, Option<i64>)> = conn
+            .query_row(
+                "SELECT name, parent_id FROM nodes WHERE id = ?1",
+                [pid],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        match row {
+            Some((name, next)) => {
+                names.push(name);
+                parent_id = next;
+            }
+            None => break,
+        }
+    }
+    names.reverse();
+    Ok(names.join(" / "))
+}
+
+pub fn search(conn: &Connection, raw: &str) -> rusqlite::Result<Vec<SearchHit>> {
+    let query = fts_query(raw);
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+    // Name matches outrank content matches via the 10:1 bm25 column weights.
+    let mut stmt = conn.prepare(
+        "SELECT n.id, n.name, n.parent_id
+         FROM item_search s JOIN nodes n ON n.id = s.rowid
+         WHERE item_search MATCH ?1
+         ORDER BY bm25(item_search, 10.0, 1.0)
+         LIMIT 200",
+    )?;
+    let rows: Vec<(i64, String, Option<i64>)> = stmt
+        .query_map([&query], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+
+    rows.into_iter()
+        .map(|(id, name, parent_id)| {
+            Ok(SearchHit {
+                id,
+                name,
+                path: ancestor_path(conn, parent_id)?,
+            })
+        })
+        .collect()
+}
+
+/// Recent items derived from `last_used_at` (PLAN.md §4). `max == 0` disables the
+/// list; `persistence_secs == 0` means no time filter.
+pub fn get_recent(
+    conn: &Connection,
+    max: i64,
+    persistence_secs: i64,
+) -> rusqlite::Result<Vec<Node>> {
+    if max <= 0 {
+        return Ok(Vec::new());
+    }
+    let cutoff = if persistence_secs <= 0 {
+        0
+    } else {
+        now_unix() - persistence_secs
+    };
+    let mut stmt = conn.prepare(&format!(
+        "SELECT {NODE_COLS} FROM nodes
+         WHERE kind = 'item' AND last_used_at IS NOT NULL
+           AND (?1 = 0 OR last_used_at >= ?2)
+         ORDER BY last_used_at DESC
+         LIMIT ?3"
+    ))?;
+    let rows = stmt.query_map(
+        rusqlite::params![persistence_secs, cutoff, max],
+        row_to_node,
+    )?;
+    rows.collect()
 }
 
 pub fn rename_node(conn: &Connection, id: i64, name: &str) -> rusqlite::Result<()> {
@@ -436,6 +539,18 @@ pub fn get_node_cmd(db: State<Db>, id: i64) -> CmdResult<Node> {
     get_node(&conn, id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("node {id} not found"))
+}
+
+#[tauri::command]
+pub fn search_cmd(db: State<Db>, query: String) -> CmdResult<Vec<SearchHit>> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    search(&conn, &query).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_recent_cmd(db: State<Db>) -> CmdResult<Vec<Node>> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    get_recent(&conn, MAX_RECENT, RECENT_DAYS * 86_400).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -747,6 +862,42 @@ mod tests {
         // but there is no second history step beyond that.
         assert!(undo_paste(&conn, &undo, item.id, ttl).unwrap());
         assert!(!undo_paste(&conn, &undo, item.id, ttl).unwrap());
+    }
+
+    #[test]
+    fn search_returns_hits_with_breadcrumb() {
+        let mut conn = db::open_in_memory().unwrap();
+        let snippets = create_group(&conn, None, "Code Snippets").unwrap();
+        let rust = create_group(&conn, Some(snippets.id), "Rust").unwrap();
+        let item = create_item(&mut conn, Some(rust.id), "main fn", &text("println")).unwrap();
+
+        let hits = search(&conn, "main").unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, item.id);
+        assert_eq!(hits[0].path, "Code Snippets / Rust");
+
+        // Content is searchable too, and arbitrary punctuation doesn't break MATCH.
+        assert_eq!(search(&conn, "println").unwrap().len(), 1);
+        assert!(search(&conn, "  \"weird( input").unwrap().is_empty());
+    }
+
+    #[test]
+    fn recent_reflects_last_used_and_limits() {
+        let mut conn = db::open_in_memory().unwrap();
+        let a = create_item(&mut conn, None, "A", &text("a")).unwrap();
+        let b = create_item(&mut conn, None, "B", &text("b")).unwrap();
+
+        // Nothing used yet.
+        assert!(get_recent(&conn, 25, 0).unwrap().is_empty());
+
+        // Mark A then B used; B is more recent.
+        conn.execute("UPDATE nodes SET last_used_at = 100 WHERE id = ?1", [a.id]).unwrap();
+        conn.execute("UPDATE nodes SET last_used_at = 200 WHERE id = ?1", [b.id]).unwrap();
+        let recent = get_recent(&conn, 25, 0).unwrap();
+        assert_eq!(recent.iter().map(|n| n.id).collect::<Vec<_>>(), vec![b.id, a.id]);
+
+        // max == 0 disables the list.
+        assert!(get_recent(&conn, 0, 0).unwrap().is_empty());
     }
 
     #[test]

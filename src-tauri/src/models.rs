@@ -22,6 +22,16 @@ pub enum NewContent {
     Text { text: String },
 }
 
+/// A ranked search result: an item plus a breadcrumb of its ancestor groups
+/// (PLAN.md §4, §5.2).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHit {
+    pub id: i64,
+    pub name: String,
+    pub path: String,
+}
+
 /// An item's stored content, returned to the frontend for display (PLAN.md §5.5,
 /// §8). Blob variants carry the absolute filesystem path so the frontend can
 /// render them through the Tauri asset protocol (`convertFileSrc`).

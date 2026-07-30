@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ItemContent, NewContent, Node } from "./types";
+import type { ItemContent, NewContent, Node, SearchHit } from "./types";
 
 // Typed wrappers around the Rust tree-CRUD commands (PLAN.md §8). Tauri maps
 // these camelCase keys to the snake_case Rust parameters.
@@ -9,6 +9,8 @@ export const api = {
   getNode: (id: number) => invoke<Node>("get_node_cmd", { id }),
   getItemContent: (id: number) =>
     invoke<ItemContent>("get_item_content_cmd", { itemId: id }),
+  search: (query: string) => invoke<SearchHit[]>("search_cmd", { query }),
+  getRecent: () => invoke<Node[]>("get_recent_cmd"),
   createGroup: (parentId: number | null, name: string) =>
     invoke<Node>("create_group_cmd", { parentId, name }),
   createItem: (parentId: number | null, name: string, content: NewContent) =>

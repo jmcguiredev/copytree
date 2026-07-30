@@ -50,11 +50,20 @@ unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
   Blob GC on overwrite is intentionally skipped (blobs are content-addressed/deduped, so shared
   blobs must not be deleted) — noted for a future refcount pass.
 
-Milestones 6–9 (search UI, settings window, monitor-clamped resize, bundle) are still to build.
-Not yet wired: `NewContent` (JS-facing) is still text-only (image/gif come from paste, not the
-add modal); `SearchBar` doesn't filter (search-results mode = M6); the Recent Items virtual
-group (§5.1) is deferred to M6; window resize doesn't re-clamp to the monitor yet (M8); the
-undo TTL is a constant pending the Settings work (M7).
+- **M6** — search & Recent Items. `search` command runs the FTS5 MATCH with `bm25(10,1)`
+  name-first ranking and returns `SearchHit`s (id, name, ancestor breadcrumb); `fts_query`
+  sanitizes arbitrary input into quoted prefix terms so operators/punctuation can't break MATCH.
+  `get_recent` derives items from `last_used_at` (max/persistence args; `0` disables / no filter).
+  Frontend: a non-empty `SearchBar` query switches `MenuView` to a flat `SearchResults` list
+  (↑↓/Enter, breadcrumb subtitle); the "Recent Items" virtual group (`RECENT_ID = -1`) is pinned
+  first in column 0 and loads via `get_recent` on expand. `contentScale`/breadcrumb-aware
+  `ContentPane` shows a name header (from column or search hit). Rust tests: +search breadcrumb
+  & sanitized MATCH, +recent ordering/limit.
+
+Milestones 7–9 (settings window, monitor-clamped resize, bundle) are still to build. Not yet
+wired: `NewContent` (JS-facing) is still text-only (image/gif come from paste, not the add
+modal); the Recent Items count/persistence and undo TTL are constants pending Settings (M7);
+window resize doesn't re-clamp to the monitor yet (M8).
 
 To display image/gif blobs the frontend uses `convertFileSrc`, which needs the
 `security.assetProtocol` scope to cover the file — keep blobs under `$APPDATA/blobs/`.

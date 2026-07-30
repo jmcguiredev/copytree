@@ -9,6 +9,8 @@ import type { ItemContent } from "../types";
 // Content Display Scale drives the text/image sizing.
 export default function ContentPane() {
   const selectedItemId = useMenu((s) => s.selectedItemId);
+  const selectedItemName = useMenu((s) => s.selectedItemName);
+  const columns = useMenu((s) => s.columns);
   const contentVersion = useMenu((s) => s.contentVersion);
   const scale = useMenu((s) => s.contentScale);
   const [content, setContent] = useState<ItemContent | null>(null);
@@ -32,11 +34,23 @@ export default function ContentPane() {
 
   if (selectedItemId == null) return null;
 
+  // Prefer the name from a visible column; fall back to a search hit's name.
+  const inColumn = columns
+    .flatMap((c) => c.nodes)
+    .find((n) => n.id === selectedItemId);
+  const name = inColumn?.name ?? selectedItemName ?? "Item";
+
   return (
     <div
       className="flex w-[320px] shrink-0 flex-col overflow-hidden"
       style={{ background: "var(--acm-bg-elevated)" }}
     >
+      <div
+        className="truncate border-b px-3 py-2 text-sm font-medium"
+        style={{ color: "var(--acm-fg)", borderColor: "var(--acm-border)" }}
+      >
+        {name}
+      </div>
       {error && (
         <div className="p-3 text-xs" style={{ color: "#e07a72" }}>
           {error}

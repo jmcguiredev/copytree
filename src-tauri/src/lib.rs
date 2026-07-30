@@ -161,6 +161,8 @@ pub fn run() {
             commands::list_children_cmd,
             commands::get_node_cmd,
             commands::get_item_content_cmd,
+            commands::search_cmd,
+            commands::get_recent_cmd,
             commands::create_group_cmd,
             commands::create_item_cmd,
             commands::rename_node_cmd,

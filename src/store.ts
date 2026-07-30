@@ -1,6 +1,27 @@
 import { create } from "zustand";
 import { api } from "./api";
-import type { Node } from "./types";
+import type { Node, SearchHit } from "./types";
+
+/** Sentinel id for the virtual "Recent Items" group (PLAN.md §5.1). */
+export const RECENT_ID = -1;
+
+function recentNode(): Node {
+  return {
+    id: RECENT_ID,
+    parentId: null,
+    kind: "group",
+    name: "Recent Items",
+    position: -1,
+    createdAt: 0,
+    updatedAt: 0,
+    lastUsedAt: null,
+  };
+}
+
+/** Root children, with the Recent Items group pinned first (PLAN.md §5.1). */
+function withRecent(roots: Node[]): Node[] {
+  return [recentNode(), ...roots];
+}
 
 /** One visible column: the children of `parentId` (null = root). */
 export interface Column {
@@ -10,28 +31,32 @@ export interface Column {
 
 interface MenuState {
   columns: Column[];
-  /** Keyboard focus: which column and which row within it. */
   focus: { col: number; id: number | null };
-  /** Item whose content pane is shown, if any. */
   selectedItemId: number | null;
-  /** Content Display Scale (PLAN.md §7); driven by Settings in M7. */
+  /** Name for the content-pane header when the item isn't in a column (search). */
+  selectedItemName: string | null;
   contentScale: number;
-  /** Bumped to force the content pane to refetch after a paste/undo/redo. */
   contentVersion: number;
+
+  // Search-results mode (PLAN.md §5.2).
+  searchQuery: string;
+  searchResults: SearchHit[];
+  searchFocus: number;
 
   init: () => Promise<void>;
   reset: () => void;
-  /** Open (and force-refresh) the content pane for an item. */
   showItemContent: (id: number) => void;
 
   focusRow: (col: number, id: number) => void;
   moveFocus: (delta: number) => void;
-  /** Expand a group into the next column. `enter` moves focus into it. */
   expandGroup: (col: number, node: Node, enter: boolean) => Promise<void>;
   selectItem: (col: number, node: Node) => void;
-  /** Enter / click: expand a group or select an item. */
   activate: (col: number, node: Node) => Promise<void>;
   collapseFocused: () => void;
+
+  setSearchQuery: (q: string) => Promise<void>;
+  moveSearchFocus: (delta: number) => void;
+  openSearchHit: (index: number) => void;
 
   addGroup: (name: string) => Promise<void>;
   addItem: (name: string, text: string) => Promise<void>;
@@ -40,34 +65,48 @@ interface MenuState {
   refreshColumn: (col: number) => Promise<void>;
 }
 
-/** The node currently under keyboard focus, if any. */
 export function focusedNode(state: MenuState): Node | undefined {
   const col = state.columns[state.focus.col];
   return col?.nodes.find((n) => n.id === state.focus.id);
+}
+
+/** Load a column's nodes for a given parent, handling the virtual recent group. */
+async function loadColumn(parentId: number | null): Promise<Node[]> {
+  if (parentId === RECENT_ID) return api.getRecent();
+  const nodes = await api.listChildren(parentId);
+  return parentId === null ? withRecent(nodes) : nodes;
 }
 
 export const useMenu = create<MenuState>((set, get) => ({
   columns: [],
   focus: { col: 0, id: null },
   selectedItemId: null,
+  selectedItemName: null,
   contentScale: 1,
   contentVersion: 0,
+  searchQuery: "",
+  searchResults: [],
+  searchFocus: 0,
 
   showItemContent: (id) =>
     set((s) => ({ selectedItemId: id, contentVersion: s.contentVersion + 1 })),
 
   init: async () => {
-    const nodes = await api.listChildren(null);
+    const nodes = await loadColumn(null);
     set({
       columns: [{ parentId: null, nodes }],
       focus: { col: 0, id: nodes[0]?.id ?? null },
       selectedItemId: null,
+      selectedItemName: null,
+      searchQuery: "",
+      searchResults: [],
+      searchFocus: 0,
     });
   },
 
-  reset: () => set({ columns: [], focus: { col: 0, id: null }, selectedItemId: null }),
+  reset: () =>
+    set({ columns: [], focus: { col: 0, id: null }, selectedItemId: null }),
 
-  // Focusing a row collapses any deeper columns opened from a sibling.
   focusRow: (col, id) =>
     set((s) => ({
       columns: s.columns.slice(0, col + 1),
@@ -89,7 +128,7 @@ export const useMenu = create<MenuState>((set, get) => ({
     }),
 
   expandGroup: async (col, node, enter) => {
-    const children = await api.listChildren(node.id);
+    const children = await loadColumn(node.id);
     set((s) => {
       const columns = s.columns.slice(0, col + 1);
       columns.push({ parentId: node.id, nodes: children });
@@ -106,6 +145,7 @@ export const useMenu = create<MenuState>((set, get) => ({
       columns: s.columns.slice(0, col + 1),
       focus: { col, id: node.id },
       selectedItemId: node.id,
+      selectedItemName: node.name,
     })),
 
   activate: async (col, node) => {
@@ -124,9 +164,38 @@ export const useMenu = create<MenuState>((set, get) => ({
       };
     }),
 
+  setSearchQuery: async (q) => {
+    set({ searchQuery: q });
+    if (!q.trim()) {
+      set({ searchResults: [], searchFocus: 0 });
+      return;
+    }
+    const hits = await api.search(q);
+    // Ignore out-of-order responses for a stale query.
+    if (get().searchQuery === q) set({ searchResults: hits, searchFocus: 0 });
+  },
+
+  moveSearchFocus: (delta) =>
+    set((s) => {
+      if (s.searchResults.length === 0) return {};
+      const i = Math.max(0, Math.min(s.searchResults.length - 1, s.searchFocus + delta));
+      return { searchFocus: i };
+    }),
+
+  openSearchHit: (index) => {
+    const hit = get().searchResults[index];
+    if (!hit) return;
+    set((s) => ({
+      selectedItemId: hit.id,
+      selectedItemName: hit.name,
+      contentVersion: s.contentVersion + 1,
+      searchFocus: index,
+    }));
+  },
+
   refreshColumn: async (col) => {
     const parentId = get().columns[col]?.parentId ?? null;
-    const nodes = await api.listChildren(parentId);
+    const nodes = await loadColumn(parentId);
     set((s) => {
       const columns = [...s.columns];
       columns[col] = { parentId, nodes };
@@ -134,10 +203,11 @@ export const useMenu = create<MenuState>((set, get) => ({
     });
   },
 
-  // New nodes are created into the currently focused level.
+  // New nodes go into the focused level; never into the virtual recent group.
   addGroup: async (name) => {
     const col = get().focus.col;
-    const parentId = get().columns[col]?.parentId ?? null;
+    const raw = get().columns[col]?.parentId ?? null;
+    const parentId = raw === RECENT_ID ? null : raw;
     const node = await api.createGroup(parentId, name);
     await get().refreshColumn(col);
     set({ focus: { col, id: node.id } });
@@ -145,7 +215,8 @@ export const useMenu = create<MenuState>((set, get) => ({
 
   addItem: async (name, text) => {
     const col = get().focus.col;
-    const parentId = get().columns[col]?.parentId ?? null;
+    const raw = get().columns[col]?.parentId ?? null;
+    const parentId = raw === RECENT_ID ? null : raw;
     const node = await api.createItem(parentId, name, { type: "text", text });
     await get().refreshColumn(col);
     set({ focus: { col, id: node.id } });
@@ -153,14 +224,14 @@ export const useMenu = create<MenuState>((set, get) => ({
 
   renameFocused: async (name) => {
     const { focus } = get();
-    if (focus.id == null) return;
+    if (focus.id == null || focus.id === RECENT_ID) return;
     await api.renameNode(focus.id, name);
     await get().refreshColumn(focus.col);
   },
 
   removeFocused: async () => {
     const { focus } = get();
-    if (focus.id == null) return;
+    if (focus.id == null || focus.id === RECENT_ID) return;
     await api.deleteNode(focus.id);
     await get().refreshColumn(focus.col);
     set((s) => ({

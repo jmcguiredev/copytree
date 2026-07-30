@@ -10,6 +10,13 @@ export interface Node {
   lastUsedAt: number | null;
 }
 
+// A ranked search result with an ancestor breadcrumb.
+export interface SearchHit {
+  id: number;
+  name: string;
+  path: string;
+}
+
 // Only text is created from the frontend; image/gif items come from pasting (M5).
 export type NewContent = { type: "text"; text: string };
 

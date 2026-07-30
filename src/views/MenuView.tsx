@@ -4,17 +4,20 @@ import { LogicalSize } from "@tauri-apps/api/dpi";
 import { api } from "../api";
 import { focusedNode, useMenu } from "../store";
 import SearchBar from "../components/SearchBar";
+import SearchResults from "../components/SearchResults";
 import MenuColumns from "../components/MenuColumns";
 import ContentPane from "../components/ContentPane";
 import AddRemoveControls from "../components/AddRemoveControls";
 
 const COL_W = 210;
 const CONTENT_W = 320;
+const RESULTS_W = 320;
 
 export default function MenuView() {
   const searchRef = useRef<HTMLInputElement>(null);
   const columnCount = useMenu((s) => s.columns.length);
   const selectedItemId = useMenu((s) => s.selectedItemId);
+  const searchActive = useMenu((s) => s.searchQuery.trim().length > 0);
   const init = useMenu((s) => s.init);
   const moveFocus = useMenu((s) => s.moveFocus);
 
@@ -73,6 +76,25 @@ export default function MenuView() {
         return;
       }
 
+      // Search-results mode navigation (PLAN.md §5.2).
+      if (s.searchQuery.trim()) {
+        switch (e.key) {
+          case "ArrowDown":
+            e.preventDefault();
+            s.moveSearchFocus(1);
+            break;
+          case "ArrowUp":
+            e.preventDefault();
+            s.moveSearchFocus(-1);
+            break;
+          case "Enter":
+            e.preventDefault();
+            s.openSearchHit(s.searchFocus);
+            break;
+        }
+        return;
+      }
+
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
@@ -108,9 +130,12 @@ export default function MenuView() {
   // re-clamping is milestone 8; for now the top-left origin (set on open) stays
   // put and the window simply expands rightward.
   useEffect(() => {
-    const width = Math.max(320, 16 + columnCount * COL_W + (selectedItemId != null ? CONTENT_W : 0));
+    const content = selectedItemId != null ? CONTENT_W : 0;
+    const width = searchActive
+      ? 16 + RESULTS_W + content
+      : Math.max(320, 16 + columnCount * COL_W + content);
     void getCurrentWindow().setSize(new LogicalSize(width, 420));
-  }, [columnCount, selectedItemId]);
+  }, [columnCount, selectedItemId, searchActive]);
 
   return (
     <div
@@ -132,13 +157,14 @@ export default function MenuView() {
           ref={searchRef}
           onArrowDown={() => {
             searchRef.current?.blur();
-            moveFocus(0);
+            if (useMenu.getState().searchQuery.trim()) useMenu.getState().moveSearchFocus(0);
+            else moveFocus(0);
           }}
         />
       </div>
 
       <div className="mt-2 flex min-h-0 flex-1 overflow-hidden rounded-md border" style={{ borderColor: "var(--acm-border)" }}>
-        <MenuColumns />
+        {searchActive ? <SearchResults /> : <MenuColumns />}
         <ContentPane />
       </div>
 
