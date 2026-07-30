@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { api } from "../api";
+import { applyAppearance, loadSettings } from "../settings";
 import { focusedNode, useMenu } from "../store";
 import SearchBar from "../components/SearchBar";
 import SearchResults from "../components/SearchResults";
@@ -18,20 +19,23 @@ export default function MenuView() {
   const columnCount = useMenu((s) => s.columns.length);
   const selectedItemId = useMenu((s) => s.selectedItemId);
   const searchActive = useMenu((s) => s.searchQuery.trim().length > 0);
+  const uiScale = useMenu((s) => s.uiScale);
   const init = useMenu((s) => s.init);
   const moveFocus = useMenu((s) => s.moveFocus);
 
-  // Load the root tree on mount and again whenever the overlay is re-shown
-  // (it regains focus). Hiding+reshowing resets to a clean state (PLAN.md §3).
+  // Load the root tree and apply appearance on mount, and again whenever the
+  // overlay is re-shown (it regains focus) — this is how settings changes take
+  // effect live on the menu (PLAN.md §3, §7).
   useEffect(() => {
-    void init();
-    searchRef.current?.focus();
+    const refresh = () => {
+      void init();
+      void loadSettings().then(applyAppearance);
+      searchRef.current?.focus();
+    };
+    refresh();
     const win = getCurrentWindow();
     const unlisten = win.onFocusChanged(({ payload: focused }) => {
-      if (focused) {
-        void init();
-        searchRef.current?.focus();
-      }
+      if (focused) refresh();
     });
     return () => {
       void unlisten.then((f) => f());
@@ -134,8 +138,9 @@ export default function MenuView() {
     const width = searchActive
       ? 16 + RESULTS_W + content
       : Math.max(320, 16 + columnCount * COL_W + content);
-    void getCurrentWindow().setSize(new LogicalSize(width, 420));
-  }, [columnCount, selectedItemId, searchActive]);
+    // Body zoom scales the DOM by uiScale; grow the window by the same factor.
+    void getCurrentWindow().setSize(new LogicalSize(width * uiScale, 420 * uiScale));
+  }, [columnCount, selectedItemId, searchActive, uiScale]);
 
   return (
     <div

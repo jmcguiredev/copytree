@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::sync::Mutex;
 
 use tauri::{
@@ -6,13 +7,15 @@ use tauri::{
     ActivationPolicy, AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder,
     WindowEvent,
 };
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_store::StoreExt;
 
 mod blobs;
 mod clipboard;
 mod commands;
 mod db;
 mod models;
+mod settings;
 
 use commands::UndoState;
 use db::Db;
@@ -22,10 +25,29 @@ use db::Db;
 const MENU_LABEL: &str = "menu";
 const SETTINGS_LABEL: &str = "settings";
 
-/// Default global activation hotkey. PLAN.md §12 leaves the shipping default
-/// open; Cmd+Shift+V is the placeholder until the owner confirms.
-fn activation_shortcut() -> Shortcut {
-    Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyV)
+/// Parse and (re)register the global activation hotkey, replacing any previous
+/// one. The handler shows the overlay at the cursor.
+fn register_activation_hotkey(app: &AppHandle, shortcut: &str) -> Result<(), String> {
+    let shortcut = Shortcut::from_str(shortcut).map_err(|e| format!("invalid hotkey: {e}"))?;
+    let gs = app.global_shortcut();
+    let _ = gs.unregister_all();
+    gs.on_shortcut(shortcut, |app, _shortcut, event| {
+        if event.state == ShortcutState::Pressed {
+            show_menu(app);
+        }
+    })
+    .map_err(|e| e.to_string())
+}
+
+/// Change the activation hotkey (PLAN.md §7): validate + re-register, then
+/// persist to the store. Returns an error string if the shortcut is invalid.
+#[tauri::command]
+fn set_activation_hotkey(app: AppHandle, shortcut: String) -> Result<(), String> {
+    register_activation_hotkey(&app, &shortcut)?;
+    let store = app.store(settings::STORE_PATH).map_err(|e| e.to_string())?;
+    store.set("hotkey", shortcut);
+    store.save().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// Hide the menu overlay (invoked from the frontend on Escape).
@@ -96,6 +118,7 @@ fn show_menu(app: &AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             // Menubar-only app: no dock icon.
             #[cfg(target_os = "macos")]
@@ -135,13 +158,12 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Global hotkey opens the overlay at the cursor.
-            app.global_shortcut()
-                .on_shortcut(activation_shortcut(), |app, _shortcut, event| {
-                    if event.state == ShortcutState::Pressed {
-                        show_menu(app);
-                    }
-                })?;
+            // Global hotkey opens the overlay at the cursor. Read the configured
+            // shortcut, falling back to the default if it is missing/invalid.
+            let hotkey = settings::load(app.handle()).hotkey;
+            if register_activation_hotkey(app.handle(), &hotkey).is_err() {
+                let _ = register_activation_hotkey(app.handle(), settings::DEFAULT_HOTKEY);
+            }
 
             // Hide the overlay when it loses focus (clicked away / switched app).
             if let Some(menu_win) = app.get_webview_window(MENU_LABEL) {
@@ -158,6 +180,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             hide_menu,
             open_settings_window,
+            set_activation_hotkey,
             commands::list_children_cmd,
             commands::get_node_cmd,
             commands::get_item_content_cmd,

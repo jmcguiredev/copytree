@@ -60,10 +60,23 @@ unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
   `ContentPane` shows a name header (from column or search hit). Rust tests: +search breadcrumb
   & sanitized MATCH, +recent ordering/limit.
 
-Milestones 7–9 (settings window, monitor-clamped resize, bundle) are still to build. Not yet
-wired: `NewContent` (JS-facing) is still text-only (image/gif come from paste, not the add
-modal); the Recent Items count/persistence and undo TTL are constants pending Settings (M7);
-window resize doesn't re-clamp to the monitor yet (M8).
+- **M7** — Settings. `tauri-plugin-store` (`settings.json`) is the shared source of truth read
+  by both sides. Rust `settings.rs::load` reads undo seconds / recent days / max recent / hotkey
+  (clamped to §7 ranges); `get_recent_cmd` and the paste/undo/redo TTL now read live settings
+  instead of constants. `set_activation_hotkey` command validates (`Shortcut::from_str`),
+  re-registers via `register_activation_hotkey`, and persists; startup reads the stored hotkey
+  (fallback `DEFAULT_HOTKEY`). Frontend `settings.ts` (`loadSettings`/`setSetting`/
+  `applyAppearance`) + `SettingsView` form drives color scheme, the three scales, the two recent
+  settings, undo duration, and a key-capture hotkey field. Appearance applies live to the menu
+  on (re)open: theme via `data-theme`, Text Scale via root font-size, overall Scale via
+  `body { zoom }` (window `setSize` multiplied by `uiScale` to match), Content Display Scale via
+  `contentScale`. Capability gains `store:default`.
+
+Milestones 8–9 (monitor-clamped resize, bundle) are still to build. Not yet wired: `NewContent`
+(JS-facing) is still text-only (image/gif come from paste, not the add modal); window resize
+doesn't re-clamp to the monitor yet (M8). Settings changes apply to the menu on its next
+open/focus (re-read), not via a live cross-window event — sufficient since the overlay is
+hidden between uses.
 
 To display image/gif blobs the frontend uses `convertFileSrc`, which needs the
 `security.assetProtocol` scope to cover the file — keep blobs under `$APPDATA/blobs/`.

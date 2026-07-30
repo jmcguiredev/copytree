@@ -11,14 +11,11 @@ use crate::clipboard::{self, Pasteboard};
 use crate::db::Db;
 use crate::models::{ItemContent, NewContent, Node, SearchHit};
 
-/// Undo/redo retention window (PLAN.md §6). Becomes the "Overwritten Item
-/// Persistence Duration" setting in M7; `Duration::ZERO` disables undo/redo.
-const UNDO_TTL: Duration = Duration::from_secs(60);
-
-/// Recent Items defaults (PLAN.md §7); become settings in M7. `0` recent items
-/// disables the list; `0` persistence days means no time filter.
-const MAX_RECENT: i64 = 25;
-const RECENT_DAYS: i64 = 1;
+/// Undo/redo retention window from settings (PLAN.md §6/§7). `0` seconds ->
+/// `Duration::ZERO`, which disables undo/redo.
+fn undo_ttl(app: &AppHandle) -> Duration {
+    Duration::from_secs(crate::settings::load(app).undo_seconds.max(0) as u64)
+}
 
 /// Commands return a stringified error so it crosses the IPC boundary as JSON.
 type CmdResult<T> = Result<T, String>;
@@ -548,9 +545,10 @@ pub fn search_cmd(db: State<Db>, query: String) -> CmdResult<Vec<SearchHit>> {
 }
 
 #[tauri::command]
-pub fn get_recent_cmd(db: State<Db>) -> CmdResult<Vec<Node>> {
+pub fn get_recent_cmd(app: AppHandle, db: State<Db>) -> CmdResult<Vec<Node>> {
+    let s = crate::settings::load(&app);
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    get_recent(&conn, MAX_RECENT, RECENT_DAYS * 86_400).map_err(|e| e.to_string())
+    get_recent(&conn, s.max_recent, s.recent_days * 86_400).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -636,22 +634,35 @@ pub fn paste_clipboard_into_item_cmd(
         }
     };
 
+    let ttl = undo_ttl(&app);
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    overwrite_and_record(&conn, &undo.0, item_id, &new, UNDO_TTL).map_err(|e| e.to_string())
+    overwrite_and_record(&conn, &undo.0, item_id, &new, ttl).map_err(|e| e.to_string())
 }
 
 /// CMD+Z — restore the pre-paste content. Returns whether anything was undone.
 #[tauri::command]
-pub fn undo_paste_cmd(db: State<Db>, undo: State<UndoState>, item_id: i64) -> CmdResult<bool> {
+pub fn undo_paste_cmd(
+    app: AppHandle,
+    db: State<Db>,
+    undo: State<UndoState>,
+    item_id: i64,
+) -> CmdResult<bool> {
+    let ttl = undo_ttl(&app);
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    undo_paste(&conn, &undo.0, item_id, UNDO_TTL).map_err(|e| e.to_string())
+    undo_paste(&conn, &undo.0, item_id, ttl).map_err(|e| e.to_string())
 }
 
 /// CMD+Shift+Z — re-apply the undone content.
 #[tauri::command]
-pub fn redo_paste_cmd(db: State<Db>, undo: State<UndoState>, item_id: i64) -> CmdResult<bool> {
+pub fn redo_paste_cmd(
+    app: AppHandle,
+    db: State<Db>,
+    undo: State<UndoState>,
+    item_id: i64,
+) -> CmdResult<bool> {
+    let ttl = undo_ttl(&app);
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    redo_paste(&conn, &undo.0, item_id, UNDO_TTL).map_err(|e| e.to_string())
+    redo_paste(&conn, &undo.0, item_id, ttl).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

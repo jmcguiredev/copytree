@@ -28,4 +28,8 @@ export const api = {
     invoke<void>("paste_clipboard_into_item_cmd", { itemId: id }),
   undoPaste: (id: number) => invoke<boolean>("undo_paste_cmd", { itemId: id }),
   redoPaste: (id: number) => invoke<boolean>("redo_paste_cmd", { itemId: id }),
+
+  // Validate + persist + re-register the global hotkey (PLAN.md §7).
+  setActivationHotkey: (shortcut: string) =>
+    invoke<void>("set_activation_hotkey", { shortcut }),
 };

@@ -36,6 +36,7 @@ interface MenuState {
   /** Name for the content-pane header when the item isn't in a column (search). */
   selectedItemName: string | null;
   contentScale: number;
+  uiScale: number;
   contentVersion: number;
 
   // Search-results mode (PLAN.md §5.2).
@@ -83,6 +84,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   selectedItemId: null,
   selectedItemName: null,
   contentScale: 1,
+  uiScale: 1,
   contentVersion: 0,
   searchQuery: "",
   searchResults: [],
