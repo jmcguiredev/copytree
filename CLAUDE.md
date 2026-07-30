@@ -4,15 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state
 
-This repository is **pre-implementation**. The only content is `PLAN.md`, the full
-implementation spec for a macOS utility called **Advanced Clipboard Manager (ACM)**.
-No code has been scaffolded yet, and it is not a git repository.
+Scaffolded, and **milestone 1** (PLAN.md §11) is implemented: tray icon with Settings/Quit,
+`Accessory` activation policy (no dock icon), a global hotkey (**Cmd+Shift+V**, a placeholder
+default — see PLAN.md §12) that shows the transparent `menu` overlay at the cursor clamped to
+the monitor work area, Escape/blur to hide, and a dark-first Tailwind baseline. Milestones 2–9
+(SQLite/FTS5, the cascading menu UI, blob content, clipboard/undo, search, settings, resize,
+bundle) are still to build.
 
 `PLAN.md` is the source of truth. Read it before doing any work — it defines the data
-model, command surface, UI behavior, and a milestone build order (§11). Decisions marked
+model, command surface, UI behavior, and the milestone build order (§11). Decisions marked
 **[ASSUMPTION]** were not confirmed by the owner (see the open questions in §12); implement
 the stated default but keep it easy to change, and prefer surfacing the assumption over
 silently hard-coding it.
+
+Note on toolchain: Tauri 2.11's dependency tree requires Rust ≥1.85 (edition2024). Run
+`rustup update stable` if `cargo` reports an `edition2024` feature error.
 
 ## What ACM is
 

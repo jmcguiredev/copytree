@@ -10,11 +10,21 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "menu",
         "title": "ACM",
-        "width": 800,
-        "height": 600
+        "width": 420,
+        "height": 320,
+        "visible": false,
+        "focus": true,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": true
       }
     ],
     "security": {

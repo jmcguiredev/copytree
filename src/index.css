@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* Dark-first theme tokens. The `data-theme` attribute on <html> selects the
+   palette; Color Scheme in Settings will drive it (PLAN.md §7). */
+:root,
+:root[data-theme="dark"] {
+  --acm-bg: #17181c;
+  --acm-bg-elevated: #202127;
+  --acm-border: #303138;
+  --acm-fg: #e8e8ea;
+  --acm-fg-muted: #9a9ba3;
+  --acm-accent: #6d8cff;
+}
+
+:root[data-theme="light"] {
+  --acm-bg: #f7f7f8;
+  --acm-bg-elevated: #ffffff;
+  --acm-border: #e2e2e6;
+  --acm-fg: #1a1a1e;
+  --acm-fg-muted: #6b6c74;
+  --acm-accent: #3a5bff;
+}
+
+/* The menu window is transparent (PLAN.md §3); keep the document background
+   clear so only the rounded overlay panel is visible. The settings window
+   paints its own solid background via .acm-solid. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  color: var(--acm-fg);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.acm-solid {
+  background: var(--acm-bg);
+}
