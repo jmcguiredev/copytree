@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Base capability for the menu and settings windows",
   "windows": ["menu", "settings"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-set-size"]
 }

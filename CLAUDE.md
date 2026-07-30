@@ -19,9 +19,23 @@ Note: the FTS5 table is a **regular** (content-storing) table, not the contentle
 PLAN.md §4 — see the rationale comment in `db.rs`. Ranking (`bm25(item_search, 10.0, 1.0)`) is
 unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
 
-Milestones 3–9 (the cascading menu UI, blob content, clipboard/undo, search UI, settings,
-resize, bundle) are still to build. Item image/gif content is not wired yet — `NewContent` only
-has a `Text` variant so far (blobs land in M4).
+- **M3** — the cascading menu UI. Zustand store (`src/store.ts`) holds `columns` (one per open
+  level), keyboard `focus`, and `selectedItemId`, with actions that call the Rust commands via
+  the typed `src/api.ts`. Components under `src/components/` (`MenuColumns`/`NodeRow`,
+  `SearchBar`, `ContentPane`, `AddRemoveControls`, Radix-Dialog `modals`) compose in
+  `views/MenuView.tsx`, which owns keyboard nav (↑↓ within column, →/Enter expand, ← collapse,
+  Enter selects), hover-to-expand, re-init on window re-show (`onFocusChanged`), and
+  content-driven `setSize`. Frontend routes by window label (`App.tsx`).
+
+Milestones 4–9 (blob content + real content pane, clipboard/undo, search UI, settings window,
+monitor-clamped resize, bundle) are still to build. Not yet wired: `NewContent` has only a
+`Text` variant (image/gif blobs = M4); the `ContentPane` is a placeholder; `SearchBar` doesn't
+filter yet (search-results mode = M6); the Recent Items virtual group (§5.1) is deferred to M6;
+window resize doesn't re-clamp to the monitor yet (M8).
+
+Frontend↔Rust: Tauri maps camelCase JS arg keys to snake_case Rust params. Any new JS call to a
+mutating core window/webview API needs its permission added to `capabilities/default.json`
+(e.g. `core:window:allow-set-size` is already there for `setSize`).
 
 `PLAN.md` is the source of truth. Read it before doing any work — it defines the data
 model, command surface, UI behavior, and the milestone build order (§11). Decisions marked
