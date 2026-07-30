@@ -19,4 +19,11 @@ export const api = {
   moveNode: (id: number, newParentId: number | null, newPosition: number) =>
     invoke<void>("move_node_cmd", { id, newParentId, newPosition }),
   hideMenu: () => invoke<void>("hide_menu"),
+
+  // Clipboard (PLAN.md §6). All operate on a single item id.
+  copyItem: (id: number) => invoke<void>("copy_item_to_clipboard_cmd", { itemId: id }),
+  pasteIntoItem: (id: number) =>
+    invoke<void>("paste_clipboard_into_item_cmd", { itemId: id }),
+  undoPaste: (id: number) => invoke<boolean>("undo_paste_cmd", { itemId: id }),
+  redoPaste: (id: number) => invoke<boolean>("redo_paste_cmd", { itemId: id }),
 };

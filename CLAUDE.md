@@ -36,11 +36,25 @@ unchanged. `recursive_triggers` is ON so cascade deletes clean the index.
   `security.assetProtocol` (scope `$APPDATA/blobs/**`) in `tauri.conf.json`. Rust unit tests
   cover text roundtrip and blob dedup + image content read-back.
 
-Milestones 5–9 (clipboard/undo, search UI, settings window, monitor-clamped resize, bundle) are
-still to build. Not yet wired: image/gif items are only created by the seed so far (paste =
-M5); `NewContent` (JS-facing) is still text-only; `SearchBar` doesn't filter (search-results
-mode = M6); the Recent Items virtual group (§5.1) is deferred to M6; window resize doesn't
-re-clamp to the monitor yet (M8).
+- **M5** — clipboard + undo. `clipboard.rs` (macOS/`objc2-app-kit`, deps target-gated to macOS)
+  reads/writes `NSPasteboard`: text and still images (PNG+TIFF), and animated GIFs as raw bytes
+  under UTI `com.compuserve.gif` with a still-PNG fallback; `read()` prefers gif→image→text and
+  normalizes images to PNG. Commands `copy_item_to_clipboard`, `paste_clipboard_into_item`
+  (creates image/gif items from pasted data, decoding dimensions with the `image` crate),
+  `undo_paste`, `redo_paste`. Single-level undo lives in managed `UndoState`
+  (`Mutex<HashMap<i64, UndoSlot>>`) with a `UNDO_TTL` (60s; `Duration::ZERO` disables) — becomes
+  the M7 setting. Content overwrite/snapshot/undo/redo are pure fns (`set_content`,
+  `snapshot_content`, `overwrite_and_record`, `undo_paste`, `redo_paste`) unit-tested for the
+  swap + FTS reindex + ttl-zero disabling. Frontend fires Cmd+C/V/Z/Shift+Z as in-window
+  accelerators on the selected/focused item; `contentVersion` forces the pane to refetch.
+  Blob GC on overwrite is intentionally skipped (blobs are content-addressed/deduped, so shared
+  blobs must not be deleted) — noted for a future refcount pass.
+
+Milestones 6–9 (search UI, settings window, monitor-clamped resize, bundle) are still to build.
+Not yet wired: `NewContent` (JS-facing) is still text-only (image/gif come from paste, not the
+add modal); `SearchBar` doesn't filter (search-results mode = M6); the Recent Items virtual
+group (§5.1) is deferred to M6; window resize doesn't re-clamp to the monitor yet (M8); the
+undo TTL is a constant pending the Settings work (M7).
 
 To display image/gif blobs the frontend uses `convertFileSrc`, which needs the
 `security.assetProtocol` scope to cover the file — keep blobs under `$APPDATA/blobs/`.

@@ -49,6 +49,30 @@ export default function MenuView() {
 
       const s = useMenu.getState();
       const node = focusedNode(s);
+
+      // Clipboard accelerators (PLAN.md §6) — ordinary in-window shortcuts since
+      // the menu holds focus. Operate on the selected (or focused) item.
+      if (e.metaKey || e.ctrlKey) {
+        const target = s.selectedItemId ?? (node?.kind === "item" ? node.id : null);
+        if (target == null) return;
+        const key = e.key.toLowerCase();
+        const after = () => s.showItemContent(target);
+        if (key === "c") {
+          e.preventDefault();
+          void api.copyItem(target);
+        } else if (key === "v") {
+          e.preventDefault();
+          void api.pasteIntoItem(target).then(after).catch(() => {});
+        } else if (key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          void api.undoPaste(target).then(after).catch(() => {});
+        } else if (key === "z" && e.shiftKey) {
+          e.preventDefault();
+          void api.redoPaste(target).then(after).catch(() => {});
+        }
+        return;
+      }
+
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();

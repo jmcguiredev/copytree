@@ -9,10 +9,12 @@ use tauri::{
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 mod blobs;
+mod clipboard;
 mod commands;
 mod db;
 mod models;
 
+use commands::UndoState;
 use db::Db;
 
 /// Window labels. The `menu` window is the cascading overlay; `settings` is a
@@ -111,6 +113,7 @@ pub fn run() {
             let mut conn = db::open(&data_dir.join("acm.db"))?;
             commands::seed_if_empty(&mut conn, &blobs_dir)?;
             app.manage(Db(Mutex::new(conn)));
+            app.manage(UndoState::default());
 
             // Tray icon with the Settings / Quit menu.
             let settings_item =
@@ -163,6 +166,10 @@ pub fn run() {
             commands::rename_node_cmd,
             commands::delete_node_cmd,
             commands::move_node_cmd,
+            commands::copy_item_to_clipboard_cmd,
+            commands::paste_clipboard_into_item_cmd,
+            commands::undo_paste_cmd,
+            commands::redo_paste_cmd,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

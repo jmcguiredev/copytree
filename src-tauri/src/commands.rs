@@ -1,12 +1,19 @@
-use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use rusqlite::{Connection, OptionalExtension};
 use tauri::{AppHandle, Manager, State};
 
 use crate::blobs::{self, BlobInfo};
+use crate::clipboard::{self, Pasteboard};
 use crate::db::Db;
 use crate::models::{ItemContent, NewContent, Node};
+
+/// Undo/redo retention window (PLAN.md §6). Becomes the "Overwritten Item
+/// Persistence Duration" setting in M7; `Duration::ZERO` disables undo/redo.
+const UNDO_TTL: Duration = Duration::from_secs(60);
 
 /// Commands return a stringified error so it crosses the IPC boundary as JSON.
 type CmdResult<T> = Result<T, String>;
@@ -206,6 +213,181 @@ fn sample_png() -> image::ImageResult<Vec<u8>> {
     Ok(png)
 }
 
+// ---- item content overwrite + single-level undo/redo (PLAN.md §6) ----------
+
+/// A snapshot of an item's `items` row, used as the paste undo/redo payload.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StoredContent {
+    pub content_type: String,
+    pub text_content: Option<String>,
+    pub blob_path: Option<String>,
+    pub blob_hash: Option<String>,
+    pub byte_size: Option<i64>,
+    pub width: Option<i64>,
+    pub height: Option<i64>,
+}
+
+impl StoredContent {
+    pub fn text(text: String) -> Self {
+        Self {
+            content_type: "text".into(),
+            text_content: Some(text),
+            blob_path: None,
+            blob_hash: None,
+            byte_size: None,
+            width: None,
+            height: None,
+        }
+    }
+
+    pub fn blob(kind: &str, blob: &BlobInfo, dims: Option<(i64, i64)>) -> Self {
+        let (width, height) = dims.map_or((None, None), |(w, h)| (Some(w), Some(h)));
+        Self {
+            content_type: kind.into(),
+            text_content: None,
+            blob_path: Some(blob.rel_path.clone()),
+            blob_hash: Some(blob.hash.clone()),
+            byte_size: Some(blob.byte_size),
+            width,
+            height,
+        }
+    }
+}
+
+/// One item's undo slot: at most one previous content and one redo content.
+pub struct UndoSlot {
+    pub undo: Option<StoredContent>,
+    pub redo: Option<StoredContent>,
+    pub at: Instant,
+}
+
+/// Tauri-managed undo buffer, keyed by item id (PLAN.md §6).
+pub struct UndoState(pub Mutex<HashMap<i64, UndoSlot>>);
+
+impl Default for UndoState {
+    fn default() -> Self {
+        Self(Mutex::new(HashMap::new()))
+    }
+}
+
+fn evict_expired(map: &mut HashMap<i64, UndoSlot>, ttl: Duration, now: Instant) {
+    if ttl.is_zero() {
+        map.clear();
+        return;
+    }
+    map.retain(|_, slot| now.duration_since(slot.at) < ttl);
+}
+
+pub fn snapshot_content(conn: &Connection, node_id: i64) -> rusqlite::Result<Option<StoredContent>> {
+    conn.query_row(
+        "SELECT content_type, text_content, blob_path, blob_hash, byte_size, width, height
+         FROM items WHERE node_id = ?1",
+        [node_id],
+        |row| {
+            Ok(StoredContent {
+                content_type: row.get(0)?,
+                text_content: row.get(1)?,
+                blob_path: row.get(2)?,
+                blob_hash: row.get(3)?,
+                byte_size: row.get(4)?,
+                width: row.get(5)?,
+                height: row.get(6)?,
+            })
+        },
+    )
+    .optional()
+}
+
+/// Overwrite an item's content. The `text_content` change fires the FTS trigger,
+/// keeping the search index in sync.
+pub fn set_content(conn: &Connection, node_id: i64, c: &StoredContent) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE items SET content_type=?2, text_content=?3, blob_path=?4, blob_hash=?5,
+         byte_size=?6, width=?7, height=?8 WHERE node_id=?1",
+        rusqlite::params![
+            node_id,
+            c.content_type,
+            c.text_content,
+            c.blob_path,
+            c.blob_hash,
+            c.byte_size,
+            c.width,
+            c.height
+        ],
+    )?;
+    conn.execute(
+        "UPDATE nodes SET updated_at=?2 WHERE id=?1",
+        rusqlite::params![node_id, now_unix()],
+    )?;
+    Ok(())
+}
+
+/// Replace an item's content with `new`, stashing the previous content as the
+/// single-level undo entry (unless the TTL disables undo).
+pub fn overwrite_and_record(
+    conn: &Connection,
+    undo: &Mutex<HashMap<i64, UndoSlot>>,
+    node_id: i64,
+    new: &StoredContent,
+    ttl: Duration,
+) -> rusqlite::Result<()> {
+    let previous = snapshot_content(conn, node_id)?;
+    set_content(conn, node_id, new)?;
+    if !ttl.is_zero() {
+        if let Some(prev) = previous {
+            let now = Instant::now();
+            let mut map = undo.lock().expect("undo mutex");
+            evict_expired(&mut map, ttl, now);
+            map.insert(node_id, UndoSlot { undo: Some(prev), redo: None, at: now });
+        }
+    }
+    Ok(())
+}
+
+/// Restore the previous content, stashing the current content as redo.
+pub fn undo_paste(
+    conn: &Connection,
+    undo: &Mutex<HashMap<i64, UndoSlot>>,
+    node_id: i64,
+    ttl: Duration,
+) -> rusqlite::Result<bool> {
+    let now = Instant::now();
+    let mut map = undo.lock().expect("undo mutex");
+    evict_expired(&mut map, ttl, now);
+    if let Some(slot) = map.get_mut(&node_id) {
+        if let Some(prev) = slot.undo.take() {
+            let current = snapshot_content(conn, node_id)?;
+            set_content(conn, node_id, &prev)?;
+            slot.redo = current;
+            slot.at = now;
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Re-apply the undone content, stashing the current content back as undo.
+pub fn redo_paste(
+    conn: &Connection,
+    undo: &Mutex<HashMap<i64, UndoSlot>>,
+    node_id: i64,
+    ttl: Duration,
+) -> rusqlite::Result<bool> {
+    let now = Instant::now();
+    let mut map = undo.lock().expect("undo mutex");
+    evict_expired(&mut map, ttl, now);
+    if let Some(slot) = map.get_mut(&node_id) {
+        if let Some(next) = slot.redo.take() {
+            let current = snapshot_content(conn, node_id)?;
+            set_content(conn, node_id, &next)?;
+            slot.undo = current;
+            slot.at = now;
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// Populate a fresh database with a small sample tree so there is something to
 /// browse during development (PLAN.md §11 milestone 2). No-op if the root
 /// already has children.
@@ -271,6 +453,90 @@ pub fn create_item_cmd(
 ) -> CmdResult<Node> {
     let mut conn = db.0.lock().map_err(|e| e.to_string())?;
     create_item(&mut conn, parent_id, &name, &content).map_err(|e| e.to_string())
+}
+
+fn app_blobs_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("blobs"))
+}
+
+/// CMD+C — copy the item's content to the system clipboard (PLAN.md §6).
+#[tauri::command]
+pub fn copy_item_to_clipboard_cmd(app: AppHandle, db: State<Db>, item_id: i64) -> CmdResult<()> {
+    let blobs_dir = app_blobs_dir(&app)?;
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let content = snapshot_content(&conn, item_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("item {item_id} not found"))?;
+
+    let read_blob = || -> Result<Vec<u8>, String> {
+        let path = blobs_dir.join(content.blob_path.clone().unwrap_or_default());
+        std::fs::read(path).map_err(|e| e.to_string())
+    };
+    match content.content_type.as_str() {
+        "image" => clipboard::write_image_png(&read_blob()?),
+        "gif" => clipboard::write_gif(&read_blob()?),
+        _ => clipboard::write_text(&content.text_content.clone().unwrap_or_default()),
+    }
+
+    // Feeds Recent Items (PLAN.md §4).
+    conn.execute(
+        "UPDATE nodes SET last_used_at=?2 WHERE id=?1",
+        rusqlite::params![item_id, now_unix()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// CMD+V — replace the item's content with the system clipboard (PLAN.md §6).
+#[tauri::command]
+pub fn paste_clipboard_into_item_cmd(
+    app: AppHandle,
+    db: State<Db>,
+    undo: State<UndoState>,
+    item_id: i64,
+) -> CmdResult<()> {
+    let blobs_dir = app_blobs_dir(&app)?;
+    let pasted = clipboard::read().ok_or_else(|| "clipboard is empty or unsupported".to_string())?;
+
+    let dims = |bytes: &[u8]| {
+        image::load_from_memory(bytes)
+            .ok()
+            .map(|i| (i.width() as i64, i.height() as i64))
+    };
+    let new = match pasted {
+        Pasteboard::Text(s) => StoredContent::text(s),
+        Pasteboard::Image(png) => {
+            let d = dims(&png);
+            let blob = blobs::store_bytes(&blobs_dir, &png, "png").map_err(|e| e.to_string())?;
+            StoredContent::blob("image", &blob, d)
+        }
+        Pasteboard::Gif(bytes) => {
+            let d = dims(&bytes);
+            let blob = blobs::store_bytes(&blobs_dir, &bytes, "gif").map_err(|e| e.to_string())?;
+            StoredContent::blob("gif", &blob, d)
+        }
+    };
+
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    overwrite_and_record(&conn, &undo.0, item_id, &new, UNDO_TTL).map_err(|e| e.to_string())
+}
+
+/// CMD+Z — restore the pre-paste content. Returns whether anything was undone.
+#[tauri::command]
+pub fn undo_paste_cmd(db: State<Db>, undo: State<UndoState>, item_id: i64) -> CmdResult<bool> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    undo_paste(&conn, &undo.0, item_id, UNDO_TTL).map_err(|e| e.to_string())
+}
+
+/// CMD+Shift+Z — re-apply the undone content.
+#[tauri::command]
+pub fn redo_paste_cmd(db: State<Db>, undo: State<UndoState>, item_id: i64) -> CmdResult<bool> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    redo_paste(&conn, &undo.0, item_id, UNDO_TTL).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -443,6 +709,66 @@ mod tests {
             other => panic!("expected image, got {other:?}"),
         }
         std::fs::remove_dir_all(&blobs_dir).ok();
+    }
+
+    fn image_content() -> StoredContent {
+        let blob = crate::blobs::BlobInfo {
+            rel_path: "deadbeef.png".into(),
+            hash: "deadbeef".into(),
+            byte_size: 128,
+        };
+        StoredContent::blob("image", &blob, Some((32, 32)))
+    }
+
+    #[test]
+    fn paste_undo_redo_swaps_content_and_reindexes() {
+        let mut conn = db::open_in_memory().unwrap();
+        let ttl = std::time::Duration::from_secs(600);
+        let undo = std::sync::Mutex::new(std::collections::HashMap::new());
+        let item = create_item(&mut conn, None, "Note", &text("original words")).unwrap();
+
+        // Paste an image over the text item.
+        overwrite_and_record(&conn, &undo, item.id, &image_content(), ttl).unwrap();
+        assert_eq!(
+            snapshot_content(&conn, item.id).unwrap().unwrap().content_type,
+            "image"
+        );
+        assert!(search_ids(&conn, "original").is_empty(), "text should be de-indexed");
+
+        // Undo -> text is back and searchable again.
+        assert!(undo_paste(&conn, &undo, item.id, ttl).unwrap());
+        assert_eq!(search_ids(&conn, "original"), vec![item.id]);
+
+        // Redo -> image again.
+        assert!(redo_paste(&conn, &undo, item.id, ttl).unwrap());
+        assert!(search_ids(&conn, "original").is_empty());
+
+        // Undo is single-level: a second undo after redo restores text once more,
+        // but there is no second history step beyond that.
+        assert!(undo_paste(&conn, &undo, item.id, ttl).unwrap());
+        assert!(!undo_paste(&conn, &undo, item.id, ttl).unwrap());
+    }
+
+    #[test]
+    fn undo_disabled_when_ttl_zero() {
+        let mut conn = db::open_in_memory().unwrap();
+        let undo = std::sync::Mutex::new(std::collections::HashMap::new());
+        let item = create_item(&mut conn, None, "N", &text("hi")).unwrap();
+
+        overwrite_and_record(
+            &conn,
+            &undo,
+            item.id,
+            &StoredContent::text("bye".into()),
+            std::time::Duration::ZERO,
+        )
+        .unwrap();
+        // Content changed, but nothing is retained to undo.
+        assert_eq!(
+            snapshot_content(&conn, item.id).unwrap().unwrap().text_content,
+            Some("bye".into())
+        );
+        assert!(!undo_paste(&conn, &undo, item.id, std::time::Duration::ZERO).unwrap());
     }
 
     #[test]

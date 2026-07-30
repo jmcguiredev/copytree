@@ -16,9 +16,13 @@ interface MenuState {
   selectedItemId: number | null;
   /** Content Display Scale (PLAN.md §7); driven by Settings in M7. */
   contentScale: number;
+  /** Bumped to force the content pane to refetch after a paste/undo/redo. */
+  contentVersion: number;
 
   init: () => Promise<void>;
   reset: () => void;
+  /** Open (and force-refresh) the content pane for an item. */
+  showItemContent: (id: number) => void;
 
   focusRow: (col: number, id: number) => void;
   moveFocus: (delta: number) => void;
@@ -47,6 +51,10 @@ export const useMenu = create<MenuState>((set, get) => ({
   focus: { col: 0, id: null },
   selectedItemId: null,
   contentScale: 1,
+  contentVersion: 0,
+
+  showItemContent: (id) =>
+    set((s) => ({ selectedItemId: id, contentVersion: s.contentVersion + 1 })),
 
   init: async () => {
     const nodes = await api.listChildren(null);

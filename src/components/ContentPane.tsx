@@ -9,6 +9,7 @@ import type { ItemContent } from "../types";
 // Content Display Scale drives the text/image sizing.
 export default function ContentPane() {
   const selectedItemId = useMenu((s) => s.selectedItemId);
+  const contentVersion = useMenu((s) => s.contentVersion);
   const scale = useMenu((s) => s.contentScale);
   const [content, setContent] = useState<ItemContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export default function ContentPane() {
     return () => {
       live = false;
     };
-  }, [selectedItemId]);
+  }, [selectedItemId, contentVersion]);
 
   if (selectedItemId == null) return null;
 
