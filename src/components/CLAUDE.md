@@ -7,8 +7,10 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 
 - `MenuColumns.tsx` → `NodeRow.tsx` — the cascade. Each column renders one level;
   `NodeRow` shows `›` for groups and highlights focused / open rows. Hover a group
-  expands it (`expandGroup(col,node,false)`); click a group expands + enters; click an
-  item selects it (opens the content pane).
+  expands it (`expandGroup(col,node,false)`); click a group expands + enters. Focusing
+  an item — hover, arrow keys, or entering a group onto it — opens its content pane
+  immediately (no Enter/click needed); the store's `contentForFocus` derives this, so
+  `focusRow`/`moveFocus`/`expandGroup` all set the content pane in lockstep with focus.
 - `SearchResults.tsx` — flat ranked list shown when `searchQuery` is non-empty; rows
   show name + breadcrumb; click / Enter → `openSearchHit`.
 - `SearchBar.tsx` — controlled by `searchQuery`; ArrowDown drops focus into results/rows.

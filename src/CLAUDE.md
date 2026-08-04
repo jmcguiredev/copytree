@@ -21,8 +21,10 @@ Single source of menu UI state:
 - `columns[]` — one per open level; `columns[0]` = root children **with the virtual
   Recent Items group** (`RECENT_ID = -1`) pinned first. `loadColumn(parentId)` handles
   the sentinel (calls `getRecent`) and re-prepends Recent for the root column.
-- `focus {col,id}` — keyboard cursor. `selectedItemId` — content-pane item;
-  `selectedItemName` — header fallback for search hits not in a column.
+- `focus {col,id}` — keyboard cursor. `selectedItemId` — content-pane item, kept in
+  lockstep with focus by `contentForFocus` (an item shows its content the moment it's
+  focused via hover/arrows/group-enter; a group clears it). `selectedItemName` — header
+  fallback for search hits not in a column.
 - Search mode: `searchQuery`/`searchResults`/`searchFocus`. Non-empty query ⇒
   `MenuView` shows `SearchResults` instead of columns.
 - `contentScale`/`uiScale` — set by `applyAppearance`; `contentVersion` bump forces

@@ -72,6 +72,21 @@ export function focusedNode(state: MenuState): Node | undefined {
   return col?.nodes.find((n) => n.id === state.focus.id);
 }
 
+/**
+ * Content-pane state implied by a focus position: an item is shown as soon as it
+ * gains focus (hover / arrow keys), a group shows nothing (PLAN.md §5.3). Lets
+ * focus movement drive the content pane without a separate activate step.
+ */
+function contentForFocus(
+  columns: Column[],
+  col: number,
+  id: number | null,
+): { selectedItemId: number | null; selectedItemName: string | null } {
+  const node = columns[col]?.nodes.find((n) => n.id === id);
+  if (node?.kind === "item") return { selectedItemId: node.id, selectedItemName: node.name };
+  return { selectedItemId: null, selectedItemName: null };
+}
+
 /** Load a column's nodes for a given parent, handling the virtual recent group. */
 async function loadColumn(parentId: number | null): Promise<Node[]> {
   if (parentId === RECENT_ID) return api.getRecent();
@@ -111,11 +126,10 @@ export const useMenu = create<MenuState>((set, get) => ({
     set({ columns: [], focus: { col: 0, id: null }, selectedItemId: null }),
 
   focusRow: (col, id) =>
-    set((s) => ({
-      columns: s.columns.slice(0, col + 1),
-      focus: { col, id },
-      selectedItemId: null,
-    })),
+    set((s) => {
+      const columns = s.columns.slice(0, col + 1);
+      return { columns, focus: { col, id }, ...contentForFocus(columns, col, id) };
+    }),
 
   moveFocus: (delta) =>
     set((s) => {
@@ -123,11 +137,9 @@ export const useMenu = create<MenuState>((set, get) => ({
       if (!col || col.nodes.length === 0) return {};
       const i = col.nodes.findIndex((n) => n.id === s.focus.id);
       const next = Math.max(0, Math.min(col.nodes.length - 1, (i < 0 ? 0 : i) + delta));
-      return {
-        columns: s.columns.slice(0, s.focus.col + 1),
-        focus: { col: s.focus.col, id: col.nodes[next].id },
-        selectedItemId: null,
-      };
+      const columns = s.columns.slice(0, s.focus.col + 1);
+      const id = col.nodes[next].id;
+      return { columns, focus: { col: s.focus.col, id }, ...contentForFocus(columns, s.focus.col, id) };
     }),
 
   expandGroup: async (col, node, enter) => {
@@ -135,11 +147,11 @@ export const useMenu = create<MenuState>((set, get) => ({
     set((s) => {
       const columns = s.columns.slice(0, col + 1);
       columns.push({ parentId: node.id, nodes: children });
-      return {
-        columns,
-        focus: enter ? { col: col + 1, id: children[0]?.id ?? null } : { col, id: node.id },
-        selectedItemId: null,
-      };
+      if (enter) {
+        const id = children[0]?.id ?? null;
+        return { columns, focus: { col: col + 1, id }, ...contentForFocus(columns, col + 1, id) };
+      }
+      return { columns, focus: { col, id: node.id }, selectedItemId: null, selectedItemName: null };
     });
   },
 
