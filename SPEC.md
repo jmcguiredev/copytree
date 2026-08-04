@@ -35,6 +35,9 @@ runtime in `lib.rs` setup). Owns:
   demand from the tray via `open_settings_window`, which shows + focuses + (macOS)
   `activateIgnoringOtherApps` so it reliably comes to the front on first open (an
   Accessory app isn't auto-activated, so a shown window can land behind others).
+  While focused it drops the overlay's always-on-top (`menu.set_always_on_top(false)`)
+  so it can sit in front of the overlay; the overlay restores it on `Focused(true)`
+  and `show_menu` re-asserts it.
 
 Frontend routes on `getCurrentWindow().label` in `App.tsx` → `MenuView` or
 `SettingsView`.
