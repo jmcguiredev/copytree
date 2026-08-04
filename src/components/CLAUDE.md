@@ -5,7 +5,12 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 
 ## Pieces
 
-- `MenuColumns.tsx` → `NodeRow.tsx` — the cascade. Each column renders one level;
+- `MenuColumns.tsx` → `NodeRow.tsx` — the cascade. Each column has a per-depth-index
+  width (`store.columnWidths` / `columnWidth()`, default `DEFAULT_COL_W`) resized by its
+  right-edge splitter and persisted to `settings.columnWidths` on drag end; the content
+  pane flexes to fill and the row scrolls horizontally when columns overflow. Also renders
+  the inline `DraftRow` (new group/item naming) in the active column. Each column renders
+  one level;
   `NodeRow` shows `›` for groups and highlights focused / open rows. Hover a group
   expands it (`expandGroup(col,node,false)`); click a group expands + enters. Focusing
   an item — hover, arrow keys, or entering a group onto it — opens its content pane

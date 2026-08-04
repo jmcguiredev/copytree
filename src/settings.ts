@@ -22,6 +22,9 @@ export interface Settings {
   openAtCursor: boolean;
   /** UI font family name; "" = system default stack. */
   fontFamily: string;
+  /** Per-column-index widths (px) for the cascade; missing indices use the
+   *  default. Applied by depth position, so widths are consistent across trees. */
+  columnWidths: number[];
 }
 
 export const DEFAULTS: Settings = {
@@ -35,6 +38,7 @@ export const DEFAULTS: Settings = {
   hotkey: "CmdOrCtrl+Shift+KeyV",
   openAtCursor: true,
   fontFamily: "",
+  columnWidths: [],
 };
 
 /** Scale settings and the lockout guard applied to them. */
@@ -110,5 +114,9 @@ export function applyAppearance(s: Settings, applyScale = true) {
     document.documentElement.style.removeProperty("--acm-font");
   }
 
-  useMenu.setState({ contentScale, uiScale: scale });
+  useMenu.setState({
+    contentScale,
+    uiScale: scale,
+    columnWidths: Array.isArray(s.columnWidths) ? s.columnWidths : [],
+  });
 }

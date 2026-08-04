@@ -27,7 +27,10 @@ Single source of menu UI state:
   fallback for search hits not in a column.
 - Search mode: `searchQuery`/`searchResults`/`searchFocus`. Non-empty query ⇒
   `MenuView` shows `SearchResults` instead of columns.
-- `contentScale`/`uiScale` — set by `applyAppearance`; `contentVersion` bump forces
+- `draft {col,kind}` — inline new-group/item being named in a column;
+  `beginDraft`/`commitDraft` (empty name cancels; items created empty, filled by paste).
+- `contentScale`/`uiScale`/`columnWidths` — set by `applyAppearance` (from settings);
+  `columnWidths` is also updated live during a splitter drag. `contentVersion` bump forces
   the content pane to refetch (after paste/undo/redo).
 - Gotcha: mutating actions map `RECENT_ID` parent → root (`null`); you can't add into
   the virtual group. Deeper columns are truncated on focus change/selection.

@@ -45,13 +45,14 @@ Open: global hotkey → `show_menu` (Rust). With `openAtCursor` (default) it pos
 the window top-left at the global cursor; otherwise it restores the last saved
 position (`restore_menu_position`). Either way it clamps to the monitor work area,
 then show + focus. Frontend re-inits the tree and re-applies appearance on
-`onFocusChanged(true)`. Close: Escape (frontend → `hide_menu`) or window blur (Rust
-`WindowEvent::Focused(false)`) — both call `save_menu_position` first, persisting the
-window's top-left to the store key `menuPosition` so pinned mode reopens in place.
-**Exception**: the blur handler does not hide the menu while the settings window is
-visible, so you can tweak appearance and watch the menu update live — settings changes
-broadcast `acm://settings-changed`, which the (possibly unfocused) menu listens for to
-re-read + re-apply appearance without refocusing.
+`onFocusChanged(true)`. Close: Escape (frontend → `hide_menu`, which calls
+`save_menu_geometry`) or focus leaving the app. Blur on any of our windows runs
+`schedule_focus_check`: after ~120ms it hides the overlay (saving geometry first)
+**unless** one of our own windows (overlay or settings) still holds focus — so moving
+between overlay ↔ settings keeps it open, but clicking another app closes it. While both
+are open, settings changes broadcast `acm://settings-changed`, which the (possibly
+unfocused) menu listens for to re-read + re-apply appearance live. `save_menu_geometry`
+persists `menuPosition` (pinned mode) and `menuSize` (always restored on open).
 
 ## Data model (SQLite)
 
@@ -166,10 +167,12 @@ full hljs build is bundled for maximum language coverage. Image/gif render via t
 - Rust `settings.rs::load` reads `undoSeconds`, `recentDays`, `maxRecent`, `hotkey`
   (clamped to ranges), and `openAtCursor` (bool, default true); consumed by
   `get_recent_cmd`, the paste/undo/redo TTL, and `show_menu` positioning. The window's
-  last position is stored separately under `menuPosition` (written by `save_menu_position`).
+  last position/size are stored under `menuPosition`/`menuSize` (written by
+  `save_menu_geometry`); `columnWidths` holds the per-depth cascade column widths.
 - Frontend `settings.ts` (`loadSettings`/`setSetting`/`applyAppearance`) + `SettingsView`
   drive color scheme + font family + the three scales + the recent/undo durations +
   open position + hotkey capture. The font list comes from `list_system_fonts`.
+  `columnWidths` (per-depth cascade widths) is written directly by the splitter drag.
 - Appearance applies to the menu on (re)open (re-read, not a live event): `data-theme`,
   root font-size (Text Scale), `body{zoom}` (overall Scale — window `setSize` × `uiScale`
   to match), `contentScale`, and `--acm-font` (Font, consumed by `index.css`).
@@ -193,18 +196,28 @@ macOS prompts for Accessibility permission on first registration.
 
 ## Window sizing & positioning
 
-Content-driven: after any layout change the frontend measures desired size and calls
-`getCurrentWindow().setSize(...)` (× `uiScale`), then `clamp_menu` re-clamps the
-window into the monitor `work_area` (shift up/left, top-left origin otherwise fixed)
-so growth never runs off-screen. All geometry is physical px on the Rust side.
+The overlay is **user-resizable** (`resizable:true`, min 320×220). Being borderless,
+it's resized via native drag from `ResizeGrips` (right/bottom/corner zones calling
+`startResizeDragging`; needs `core:window:allow-start-resize-dragging`). Size is
+persisted: `save_menu_geometry` writes `menuSize` (+ `menuPosition`) on hide;
+`restore_menu_size` restores it on open before positioning. There is **no** content-
+driven auto-sizing — the columns + content flex to fill the window.
+
+Inside, each cascade column has a **per-depth-index width** (`settings.columnWidths`,
+default 210), dragged via its right-edge splitter (`MenuColumns`, persisted on drag
+end); the content pane is `flex-1` and fills the remainder, and the row scrolls
+horizontally when columns overflow. Widths are keyed by depth, so any tree at the same
+depth lays out identically. `clamp_menu`/`clamp_window_to_monitor` still keep the window
+on the monitor `work_area`. All Rust-side geometry is physical px.
 
 ## Capabilities & plugins
 
 `src-tauri/capabilities/default.json` applies to windows `menu`, `settings`:
 `core:default`, `core:window:allow-set-size`, `core:window:allow-start-dragging`,
-`store:default`, `dialog:default`. `allow-start-dragging` is what makes the
-`data-tauri-drag-region` handle work — `core:default` only grants window *getters*.
-Any new mutating core window/webview JS API needs its permission added here.
+`core:window:allow-start-resize-dragging`, `store:default`, `dialog:default`.
+`allow-start-dragging`/`allow-start-resize-dragging` drive the `data-tauri-drag-region`
+move handle and the `ResizeGrips` — `core:default` only grants window *getters*. Any new
+mutating core window/webview JS API needs its permission added here.
 
 ## Build, test, bundle
 

@@ -17,10 +17,10 @@ Owns everything that isn't a child component's concern:
   an input/textarea; **clipboard** Cmd/Ctrl+C/V/Z/Shift+Z on the selected/focused item;
   then **search-mode** nav (↑↓/Enter over results) if a query is active; else **tree**
   nav (↑↓ within column, →/Enter expand, ← collapse, Enter select).
-- **Resize**: effect on `[columnCount, selectedItemId, searchActive, uiScale]` computes
-  width, `setSize(width×uiScale, 420×uiScale)`, then `api.clampMenu()` to keep it on the
-  monitor. Column/content/results widths are the `*_W` consts — keep them in sync with
-  the components' `w-[…]` classes.
+- **Sizing**: the window is user-resizable and its size is persisted/restored by the
+  backend — there's no content-driven `setSize` here. `ResizeGrips` (right/bottom/corner)
+  call `getCurrentWindow().startResizeDragging(dir)` to resize the borderless window; the
+  columns/content flex to fill it and the row scrolls horizontally (see `MenuColumns`).
 - Drag handle uses `data-tauri-drag-region`; double-click maximize is disabled
   (`onDoubleClick preventDefault` + `maximizable:false` on the window). The handle
   needs `core:window:allow-start-dragging` in capabilities — `core:default` doesn't

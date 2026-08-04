@@ -52,16 +52,40 @@ fn set_activation_hotkey(app: AppHandle, shortcut: String) -> Result<(), String>
     Ok(())
 }
 
-/// Persist the menu window's current top-left so "open where I left it" mode can
-/// restore it. Called just before every hide, so the saved point is wherever the
-/// user last dragged/left the overlay.
-fn save_menu_position(app: &AppHandle) {
+/// Persist the menu window's current geometry: the top-left (for "open where I
+/// left it" mode) and the size (always restored, since the overlay is now
+/// user-resizable). Called just before every hide, so it captures wherever the
+/// user last dragged/sized the overlay.
+fn save_menu_geometry(app: &AppHandle) {
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
-        if let Ok(pos) = win.outer_position() {
-            if let Ok(store) = app.store(settings::STORE_PATH) {
+        if let Ok(store) = app.store(settings::STORE_PATH) {
+            if let Ok(pos) = win.outer_position() {
                 store.set("menuPosition", serde_json::json!({ "x": pos.x, "y": pos.y }));
-                let _ = store.save();
             }
+            if let Ok(size) = win.inner_size() {
+                store.set("menuSize", serde_json::json!({ "w": size.width, "h": size.height }));
+            }
+            let _ = store.save();
+        }
+    }
+}
+
+/// Restore the persisted window size before showing (independent of position
+/// mode). No-op if nothing is saved yet — the conf default size applies.
+fn restore_menu_size(app: &AppHandle) {
+    let Some(win) = app.get_webview_window(MENU_LABEL) else {
+        return;
+    };
+    let saved = app
+        .store(settings::STORE_PATH)
+        .ok()
+        .and_then(|s| s.get("menuSize"));
+    if let Some(v) = saved {
+        if let (Some(w), Some(h)) = (
+            v.get("w").and_then(|n| n.as_u64()),
+            v.get("h").and_then(|n| n.as_u64()),
+        ) {
+            let _ = win.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
         }
     }
 }
@@ -70,7 +94,7 @@ fn save_menu_position(app: &AppHandle) {
 /// position first so pinned mode reopens in place.
 #[tauri::command]
 fn hide_menu(app: AppHandle) {
-    save_menu_position(&app);
+    save_menu_geometry(&app);
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
         let _ = win.hide();
     }
@@ -250,7 +274,7 @@ fn schedule_focus_check(app: &AppHandle) {
             }
             if let Some(menu) = app2.get_webview_window(MENU_LABEL) {
                 if menu.is_visible().unwrap_or(false) {
-                    save_menu_position(&app2);
+                    save_menu_geometry(&app2);
                     let _ = menu.hide();
                 }
             }
@@ -261,6 +285,8 @@ fn schedule_focus_check(app: &AppHandle) {
 /// Show the menu overlay and hand it keyboard focus. Positions at the cursor, or
 /// restores the last position when "open where I left it" is enabled (§7).
 fn show_menu(app: &AppHandle) {
+    // Restore the saved size first so positioning clamps against the real size.
+    restore_menu_size(app);
     if settings::load(app).open_at_cursor {
         let _ = position_menu_at_cursor(app);
     } else {

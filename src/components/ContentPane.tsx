@@ -71,7 +71,7 @@ export default function ContentPane() {
 
   return (
     <div
-      className="flex w-[320px] shrink-0 flex-col overflow-hidden"
+      className="flex min-w-[220px] flex-1 flex-col overflow-hidden"
       style={{ background: "var(--acm-bg-elevated)" }}
     >
       <div

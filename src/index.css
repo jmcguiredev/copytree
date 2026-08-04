@@ -49,6 +49,13 @@ body,
   background: var(--acm-bg);
 }
 
+/* Column resize splitter: invisible until hovered/dragged. */
+.acm-col-splitter:hover,
+.acm-col-splitter:active {
+  background: var(--acm-accent);
+  opacity: 0.6;
+}
+
 /* highlight.js token colors, theme-aware (self-contained — no external hljs CSS).
    Base values suit the dark theme; the light theme overrides the hues below. */
 .hljs {

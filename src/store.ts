@@ -38,6 +38,9 @@ interface MenuState {
   contentScale: number;
   uiScale: number;
   contentVersion: number;
+  /** Per-column-index widths (px) for the cascade; live during a splitter drag,
+   *  seeded from settings on open (applyAppearance). */
+  columnWidths: number[];
 
   // Search-results mode (PLAN.md §5.2).
   searchQuery: string;
@@ -50,6 +53,7 @@ interface MenuState {
   init: () => Promise<void>;
   reset: () => void;
   showItemContent: (id: number) => void;
+  setColumnWidths: (widths: number[]) => void;
 
   focusRow: (col: number, id: number) => void;
   moveFocus: (delta: number) => void;
@@ -108,6 +112,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   contentScale: 1,
   uiScale: 1,
   contentVersion: 0,
+  columnWidths: [],
   searchQuery: "",
   searchResults: [],
   searchFocus: 0,
@@ -115,6 +120,8 @@ export const useMenu = create<MenuState>((set, get) => ({
 
   showItemContent: (id) =>
     set((s) => ({ selectedItemId: id, contentVersion: s.contentVersion + 1 })),
+
+  setColumnWidths: (widths) => set({ columnWidths: widths }),
 
   init: async () => {
     const nodes = await loadColumn(null);
