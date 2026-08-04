@@ -76,10 +76,14 @@ export async function setSetting<K extends keyof Settings>(key: K, value: Settin
 }
 
 /** Apply color scheme, font, and the overall/text/content scales (PLAN.md §7).
- *  Scales pass through safeScale so this is always a lockout-safe application. */
-export function applyAppearance(s: Settings) {
-  const scale = safeScale(s.scale, DEFAULTS.scale);
-  const textScale = safeScale(s.textScale, DEFAULTS.textScale);
+ *  Scales pass through safeScale so this is always a lockout-safe application.
+ *
+ *  `applyScale` is false for the Settings window: it renders at 1× (ignoring the
+ *  overall/text scale) so it's always usable and can rescue a bad menu scale —
+ *  the scale settings size the *menu*, not the control panel you fix them in. */
+export function applyAppearance(s: Settings, applyScale = true) {
+  const scale = applyScale ? safeScale(s.scale, DEFAULTS.scale) : 1;
+  const textScale = applyScale ? safeScale(s.textScale, DEFAULTS.textScale) : 1;
   const contentScale = safeScale(s.contentScale, DEFAULTS.contentScale);
 
   document.documentElement.dataset.theme = s.colorScheme === "Light" ? "light" : "dark";

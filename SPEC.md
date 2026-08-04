@@ -162,7 +162,13 @@ feature + `security.assetProtocol` scope `$APPDATA/blobs/**` in `tauri.conf.json
   to match), `contentScale`, and `--acm-font` (Font, consumed by `index.css`).
 - **Scale lockout guard**: `scale`/`textScale`/`contentScale` are clamped to
   `[0.25×default, 5]` in both `loadSettings` and `applyAppearance` (`safeScale`), so a
-  corrupted/empty stored value can't shrink the UI to an unrecoverable size.
+  corrupted/empty stored value can't shrink the UI to an unrecoverable size. The
+  **Settings window renders at 1×** (`applyAppearance(s, false)` skips the overall/text
+  scale) so it's always usable and can rescue a bad menu scale — the scale settings size
+  the *menu*, not the control panel.
+- **Settings controls are non-native**: `components/Select.tsx` (portalled dropdown, keyboard
+  nav + type-ahead) and `components/NumberField.tsx` (stepper, commits on blur/Enter,
+  reverts empty input) replace the browser `<select>`/`<input type=number>`.
 
 ## Global hotkey
 

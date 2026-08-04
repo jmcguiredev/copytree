@@ -1,6 +1,8 @@
-import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { api } from "../api";
 import { applyAppearance, DEFAULTS, loadSettings, scaleMin, setSetting, type Settings } from "../settings";
+import NumberField from "../components/NumberField";
+import Select, { type SelectOption } from "../components/Select";
 
 const MODIFIER_CODES = [
   "ShiftLeft",
@@ -42,14 +44,15 @@ function formatHotkey(raw: string): string {
     .join(" ");
 }
 
+// A div (not a <label>) so clicking the label text can't toggle a custom Select.
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex items-center justify-between gap-4 py-2">
+    <div className="flex items-center justify-between gap-4 py-2">
       <span className="text-sm" style={{ color: "var(--acm-fg)" }}>
         {label}
       </span>
       {children}
-    </label>
+    </div>
   );
 }
 
@@ -68,7 +71,9 @@ export default function SettingsView() {
   useEffect(() => {
     void loadSettings().then((loaded) => {
       setS(loaded);
-      applyAppearance(loaded);
+      // Settings renders at 1× (applyScale=false) so it stays usable regardless
+      // of the menu scale — see applyAppearance.
+      applyAppearance(loaded, false);
     });
     void api.listSystemFonts().then(setFonts).catch(() => setFonts([]));
   }, []);
@@ -76,14 +81,18 @@ export default function SettingsView() {
   function update<K extends keyof Settings>(key: K, value: Settings[K]) {
     setS((prev) => {
       const next = { ...prev, [key]: value };
-      applyAppearance(next);
+      applyAppearance(next, false);
       return next;
     });
     void setSetting(key, value);
   }
 
-  // A labelled number input with native up/down steppers. `step < 1` keeps one
-  // decimal (the scale rows); integer steps round to whole numbers.
+  const fontOptions = useMemo<SelectOption[]>(
+    () => [{ value: "", label: "System Default" }, ...fonts.map((f) => ({ value: f, label: f }))],
+    [fonts],
+  );
+
+  // A labelled numeric field (custom stepper) + a units suffix.
   function numberRow(
     label: string,
     key: "scale" | "textScale" | "contentScale" | "undoSeconds" | "recentDays" | "maxRecent",
@@ -92,24 +101,15 @@ export default function SettingsView() {
     step: number,
     suffix: string,
   ) {
-    const decimals = step < 1 ? 1 : 0;
-    const clamp = (raw: number) => {
-      if (Number.isNaN(raw)) return min;
-      const snapped = Math.round(raw / step) * step;
-      return Math.max(min, Math.min(max, Number(snapped.toFixed(decimals))));
-    };
     return (
       <Field label={label}>
         <span className="flex items-center gap-2">
-          <input
-            type="number"
+          <NumberField
+            value={s[key]}
             min={min}
             max={max}
             step={step}
-            value={s[key]}
-            onChange={(e) => update(key, clamp(Number(e.target.value)))}
-            className="w-20 rounded-md border px-2 py-1 text-sm"
-            style={inputStyle}
+            onChange={(v) => update(key, v)}
           />
           <span className="text-xs" style={{ color: "var(--acm-fg-muted)" }}>
             {suffix}
@@ -127,31 +127,26 @@ export default function SettingsView() {
 
       <div className="divide-y" style={{ borderColor: "var(--acm-border)" }}>
         <Field label="Color Scheme">
-          <select
+          <Select
+            className="w-40"
+            ariaLabel="Color Scheme"
             value={s.colorScheme}
-            onChange={(e) => update("colorScheme", e.target.value as Settings["colorScheme"])}
-            className="rounded-md border px-2 py-1 text-sm"
-            style={inputStyle}
-          >
-            <option value="Dark">Dark</option>
-            <option value="Light">Light</option>
-          </select>
+            options={[
+              { value: "Dark", label: "Dark" },
+              { value: "Light", label: "Light" },
+            ]}
+            onChange={(v) => update("colorScheme", v as Settings["colorScheme"])}
+          />
         </Field>
 
         <Field label="Font">
-          <select
+          <Select
+            className="w-52"
+            ariaLabel="Font"
             value={fonts.includes(s.fontFamily) ? s.fontFamily : ""}
-            onChange={(e) => update("fontFamily", e.target.value)}
-            className="max-w-52 rounded-md border px-2 py-1 text-sm"
-            style={inputStyle}
-          >
-            <option value="">System Default</option>
-            {fonts.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
+            options={fontOptions}
+            onChange={(v) => update("fontFamily", v)}
+          />
         </Field>
 
         {numberRow("Scale", "scale", scaleMin("scale"), 5, 0.1, "×")}
@@ -163,15 +158,16 @@ export default function SettingsView() {
         {numberRow("Max Recent Items", "maxRecent", 0, 100, 1, "items (0 disables)")}
 
         <Field label="Open Position">
-          <select
+          <Select
+            className="w-40"
+            ariaLabel="Open Position"
             value={s.openAtCursor ? "cursor" : "last"}
-            onChange={(e) => update("openAtCursor", e.target.value === "cursor")}
-            className="rounded-md border px-2 py-1 text-sm"
-            style={inputStyle}
-          >
-            <option value="cursor">At cursor</option>
-            <option value="last">Where I left it</option>
-          </select>
+            options={[
+              { value: "cursor", label: "At cursor" },
+              { value: "last", label: "Where I left it" },
+            ]}
+            onChange={(v) => update("openAtCursor", v === "cursor")}
+          />
         </Field>
 
         <Field label="Activation Hotkey">

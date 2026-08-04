@@ -44,5 +44,7 @@ names in sync with `settings.rs`. The **hotkey** is changed via `api.setActivati
 **Scale lockout guard**: `scale`/`textScale`/`contentScale` (`SCALE_KEYS`) run through
 `safeScale` — clamped to `[0.25×default, 5]` — in both `loadSettings` and
 `applyAppearance`, so a null/0/typo'd value can't shrink the UI past recovery. The
-Settings inputs use `scaleMin(key)` as their floor. **Font** family names come from
-`api.listSystemFonts` (WKWebView has no `queryLocalFonts`).
+Settings inputs use `scaleMin(key)` as their floor, and `SettingsView` calls
+`applyAppearance(s, false)` so the settings window itself renders at 1× (always usable,
+rescues a bad menu scale). **Font** family names come from `api.listSystemFonts`
+(WKWebView has no `queryLocalFonts`).

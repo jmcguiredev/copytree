@@ -20,6 +20,11 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 - `AddRemoveControls.tsx` — `+ / – / Rename`, owns the modal open state; targets the
   focused level / node.
 - `modals.tsx` — Radix `AddModal` / `RenameModal` / `ConfirmDeleteModal`.
+- `Select.tsx` / `NumberField.tsx` — non-native form controls used by `SettingsView`
+  (the native ones felt clunky). `Select` portals its list to `<body>` (fixed position,
+  so the settings scroll container can't clip it) with keyboard nav + type-ahead;
+  `NumberField` is a stepper that commits on blur/Enter and reverts empty/invalid input
+  to the last valid value (so a scale field can't be emptied into a lockout).
 
 ## Gotchas
 
