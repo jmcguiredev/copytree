@@ -107,5 +107,5 @@ settings.json   # your settings
 Tauri v2 (Rust + WKWebView) · React + TypeScript + Vite · Tailwind CSS · Radix ·
 Zustand · SQLite (`rusqlite`, FTS5) · native `NSPasteboard` via `objc2`.
 
-See [`PLAN.md`](PLAN.md) for the full implementation spec and
-[`CLAUDE.md`](CLAUDE.md) for an architecture overview.
+See [`SPEC.md`](SPEC.md) for the architecture & wiring reference and
+[`CLAUDE.md`](CLAUDE.md) for repo orientation.
