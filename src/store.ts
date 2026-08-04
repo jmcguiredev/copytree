@@ -44,6 +44,9 @@ interface MenuState {
   searchResults: SearchHit[];
   searchFocus: number;
 
+  /** Inline "new group / new item" being named in a column (null = none). */
+  draft: { col: number; kind: "group" | "item" } | null;
+
   init: () => Promise<void>;
   reset: () => void;
   showItemContent: (id: number) => void;
@@ -62,6 +65,9 @@ interface MenuState {
   addGroup: (name: string) => Promise<void>;
   addItem: (name: string, text: string) => Promise<void>;
   addFileItem: (name: string, path: string) => Promise<void>;
+  beginDraft: (kind: "group" | "item") => void;
+  cancelDraft: () => void;
+  commitDraft: (name: string) => Promise<void>;
   renameFocused: (name: string) => Promise<void>;
   removeFocused: () => Promise<void>;
   refreshColumn: (col: number) => Promise<void>;
@@ -105,6 +111,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   searchQuery: "",
   searchResults: [],
   searchFocus: 0,
+  draft: null,
 
   showItemContent: (id) =>
     set((s) => ({ selectedItemId: id, contentVersion: s.contentVersion + 1 })),
@@ -244,6 +251,36 @@ export const useMenu = create<MenuState>((set, get) => ({
     const node = await api.createFileItem(parentId, name, path);
     await get().refreshColumn(col);
     set({ focus: { col, id: node.id } });
+  },
+
+  // Inline creation: a draft row is named in the focused column, then committed
+  // (empty name → cancelled). Items are created empty — content comes from
+  // pasting into them (text/image/gif, auto-detected).
+  beginDraft: (kind) => set((s) => ({ draft: { col: s.focus.col, kind } })),
+
+  cancelDraft: () => set({ draft: null }),
+
+  commitDraft: async (name) => {
+    const d = get().draft;
+    if (!d) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      set({ draft: null });
+      return;
+    }
+    const raw = get().columns[d.col]?.parentId ?? null;
+    const parentId = raw === RECENT_ID ? null : raw;
+    const node =
+      d.kind === "group"
+        ? await api.createGroup(parentId, trimmed)
+        : await api.createItem(parentId, trimmed, { type: "text", text: "" });
+    set({ draft: null });
+    await get().refreshColumn(d.col);
+    set((s) => ({
+      columns: s.columns.slice(0, d.col + 1),
+      focus: { col: d.col, id: node.id },
+      ...contentForFocus(s.columns, d.col, node.id),
+    }));
   },
 
   renameFocused: async (name) => {
