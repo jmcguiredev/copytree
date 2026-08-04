@@ -124,6 +124,7 @@ capability entry.
 - `hide_menu` (`lib.rs`) → `api.hideMenu`
 - `clamp_menu` (`lib.rs`) → `api.clampMenu`
 - `set_activation_hotkey` (`lib.rs`) → `api.setActivationHotkey`
+- `list_system_fonts` (`lib.rs`) → `api.listSystemFonts` (AppKit family names, main-thread)
 - `open_settings_window` (`lib.rs`) — invoked from the tray, not `api`
 
 ## Clipboard & undo
@@ -154,10 +155,14 @@ feature + `security.assetProtocol` scope `$APPDATA/blobs/**` in `tauri.conf.json
   `get_recent_cmd`, the paste/undo/redo TTL, and `show_menu` positioning. The window's
   last position is stored separately under `menuPosition` (written by `save_menu_position`).
 - Frontend `settings.ts` (`loadSettings`/`setSetting`/`applyAppearance`) + `SettingsView`
-  drive color scheme + the three scales + the recent/undo durations + hotkey capture.
+  drive color scheme + font family + the three scales + the recent/undo durations +
+  open position + hotkey capture. The font list comes from `list_system_fonts`.
 - Appearance applies to the menu on (re)open (re-read, not a live event): `data-theme`,
   root font-size (Text Scale), `body{zoom}` (overall Scale — window `setSize` × `uiScale`
-  to match), `contentScale`.
+  to match), `contentScale`, and `--acm-font` (Font, consumed by `index.css`).
+- **Scale lockout guard**: `scale`/`textScale`/`contentScale` are clamped to
+  `[0.25×default, 5]` in both `loadSettings` and `applyAppearance` (`safeScale`), so a
+  corrupted/empty stored value can't shrink the UI to an unrecoverable size.
 
 ## Global hotkey
 

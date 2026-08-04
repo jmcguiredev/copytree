@@ -31,8 +31,17 @@ body,
   margin: 0;
   background: transparent;
   color: var(--acm-fg);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  /* --acm-font is set by applyAppearance from the Font setting; when unset the
+     fallback list (the system stack) applies. */
+  font-family: var(
+    --acm-font,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "SF Pro Text",
+    "Segoe UI",
+    sans-serif
+  );
   -webkit-font-smoothing: antialiased;
 }
 

@@ -35,4 +35,7 @@ export const api = {
   // Validate + persist + re-register the global hotkey (PLAN.md §7).
   setActivationHotkey: (shortcut: string) =>
     invoke<void>("set_activation_hotkey", { shortcut }),
+
+  // Installed font family names for the settings font picker.
+  listSystemFonts: () => invoke<string[]>("list_system_fonts"),
 };

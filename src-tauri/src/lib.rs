@@ -14,6 +14,8 @@ mod blobs;
 mod clipboard;
 mod commands;
 mod db;
+#[cfg(target_os = "macos")]
+mod fonts;
 mod models;
 mod settings;
 
@@ -71,6 +73,30 @@ fn hide_menu(app: AppHandle) {
     save_menu_position(&app);
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
         let _ = win.hide();
+    }
+}
+
+/// List installed font family names for the settings font picker. Enumerates via
+/// AppKit on the main thread (`NSFontManager` is main-thread-only); returns an
+/// empty list off macOS.
+#[tauri::command]
+fn list_system_fonts(app: AppHandle) -> Result<Vec<String>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let (tx, rx) = std::sync::mpsc::channel();
+        app.run_on_main_thread(move || {
+            let fonts = objc2::MainThreadMarker::new()
+                .map(fonts::available_families)
+                .unwrap_or_default();
+            let _ = tx.send(fonts);
+        })
+        .map_err(|e| e.to_string())?;
+        rx.recv().map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        Ok(Vec::new())
     }
 }
 
@@ -261,6 +287,7 @@ pub fn run() {
             open_settings_window,
             set_activation_hotkey,
             clamp_menu,
+            list_system_fonts,
             commands::list_children_cmd,
             commands::get_node_cmd,
             commands::get_item_content_cmd,

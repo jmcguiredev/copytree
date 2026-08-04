@@ -36,6 +36,13 @@ Single source of menu UI state:
 
 `loadSettings()` reads all keys (defaults for missing); `setSetting(k,v)` writes+saves;
 `applyAppearance(s)` sets `data-theme`, root font-size (Text Scale), `body{zoom}`
-(overall Scale), and pushes `contentScale`/`uiScale` into the store. The store file is
-shared with Rust — keep key names in sync with `settings.rs`. The **hotkey** is changed
-via `api.setActivationHotkey` (Rust re-registers + persists), not `setSetting`.
+(overall Scale), the `--acm-font` custom property (Font), and pushes
+`contentScale`/`uiScale` into the store. The store file is shared with Rust — keep key
+names in sync with `settings.rs`. The **hotkey** is changed via `api.setActivationHotkey`
+(Rust re-registers + persists), not `setSetting`.
+
+**Scale lockout guard**: `scale`/`textScale`/`contentScale` (`SCALE_KEYS`) run through
+`safeScale` — clamped to `[0.25×default, 5]` — in both `loadSettings` and
+`applyAppearance`, so a null/0/typo'd value can't shrink the UI past recovery. The
+Settings inputs use `scaleMin(key)` as their floor. **Font** family names come from
+`api.listSystemFonts` (WKWebView has no `queryLocalFonts`).

@@ -1,6 +1,6 @@
 import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { api } from "../api";
-import { applyAppearance, DEFAULTS, loadSettings, setSetting, type Settings } from "../settings";
+import { applyAppearance, DEFAULTS, loadSettings, scaleMin, setSetting, type Settings } from "../settings";
 
 const MODIFIER_CODES = [
   "ShiftLeft",
@@ -63,12 +63,14 @@ export default function SettingsView() {
   const [s, setS] = useState<Settings>(DEFAULTS);
   const [capturing, setCapturing] = useState(false);
   const [hotkeyError, setHotkeyError] = useState<string | null>(null);
+  const [fonts, setFonts] = useState<string[]>([]);
 
   useEffect(() => {
     void loadSettings().then((loaded) => {
       setS(loaded);
       applyAppearance(loaded);
     });
+    void api.listSystemFonts().then(setFonts).catch(() => setFonts([]));
   }, []);
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]) {
@@ -80,33 +82,22 @@ export default function SettingsView() {
     void setSetting(key, value);
   }
 
-  function scaleRow(label: string, key: "scale" | "textScale" | "contentScale") {
-    return (
-      <Field label={label}>
-        <span className="flex items-center gap-2">
-          <input
-            type="range"
-            min={0.1}
-            max={5}
-            step={0.1}
-            value={s[key]}
-            onChange={(e) => update(key, Number(e.target.value))}
-          />
-          <span className="w-10 text-right text-sm tabular-nums" style={{ color: "var(--acm-fg-muted)" }}>
-            {s[key].toFixed(1)}×
-          </span>
-        </span>
-      </Field>
-    );
-  }
-
+  // A labelled number input with native up/down steppers. `step < 1` keeps one
+  // decimal (the scale rows); integer steps round to whole numbers.
   function numberRow(
     label: string,
-    key: "undoSeconds" | "recentDays" | "maxRecent",
+    key: "scale" | "textScale" | "contentScale" | "undoSeconds" | "recentDays" | "maxRecent",
     min: number,
     max: number,
+    step: number,
     suffix: string,
   ) {
+    const decimals = step < 1 ? 1 : 0;
+    const clamp = (raw: number) => {
+      if (Number.isNaN(raw)) return min;
+      const snapped = Math.round(raw / step) * step;
+      return Math.max(min, Math.min(max, Number(snapped.toFixed(decimals))));
+    };
     return (
       <Field label={label}>
         <span className="flex items-center gap-2">
@@ -114,10 +105,9 @@ export default function SettingsView() {
             type="number"
             min={min}
             max={max}
+            step={step}
             value={s[key]}
-            onChange={(e) =>
-              update(key, Math.max(min, Math.min(max, Math.round(Number(e.target.value)))))
-            }
+            onChange={(e) => update(key, clamp(Number(e.target.value)))}
             className="w-20 rounded-md border px-2 py-1 text-sm"
             style={inputStyle}
           />
@@ -148,13 +138,29 @@ export default function SettingsView() {
           </select>
         </Field>
 
-        {scaleRow("Scale", "scale")}
-        {scaleRow("Text Scale", "textScale")}
-        {scaleRow("Content Display Scale", "contentScale")}
+        <Field label="Font">
+          <select
+            value={fonts.includes(s.fontFamily) ? s.fontFamily : ""}
+            onChange={(e) => update("fontFamily", e.target.value)}
+            className="max-w-52 rounded-md border px-2 py-1 text-sm"
+            style={inputStyle}
+          >
+            <option value="">System Default</option>
+            {fonts.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-        {numberRow("Overwritten Item Persistence", "undoSeconds", 0, 60, "seconds (0 disables undo)")}
-        {numberRow("Recent Items Persistence", "recentDays", 0, 30, "days (0 = keep all)")}
-        {numberRow("Max Recent Items", "maxRecent", 0, 100, "items (0 disables)")}
+        {numberRow("Scale", "scale", scaleMin("scale"), 5, 0.1, "×")}
+        {numberRow("Text Scale", "textScale", scaleMin("textScale"), 5, 0.1, "×")}
+        {numberRow("Content Display Scale", "contentScale", scaleMin("contentScale"), 5, 0.1, "×")}
+
+        {numberRow("Overwritten Item Persistence", "undoSeconds", 0, 60, 1, "seconds (0 disables undo)")}
+        {numberRow("Recent Items Persistence", "recentDays", 0, 30, 1, "days (0 = keep all)")}
+        {numberRow("Max Recent Items", "maxRecent", 0, 100, 1, "items (0 disables)")}
 
         <Field label="Open Position">
           <select

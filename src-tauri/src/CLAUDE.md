@@ -10,6 +10,9 @@ Working context for the Tauri/Rust side. See `SPEC.md` for the full map.
   `&Connection` (testable) + a thin `#[tauri::command] *_cmd` wrapper that locks
   state and maps errors to `String`.
 - `db.rs`, `models.rs`, `blobs.rs`, `clipboard.rs`, `settings.rs` — see SPEC.
+- `fonts.rs` — macOS-only; `NSFontManager` family enumeration. It's `MainThreadOnly`,
+  so `list_system_fonts` (in `lib.rs`) calls it via `app.run_on_main_thread` and ships
+  the result back over a channel. Off-macOS the command returns an empty list.
 
 ## Conventions & gotchas
 
