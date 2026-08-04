@@ -18,7 +18,9 @@ Owns everything that isn't a child component's concern:
   monitor. Column/content/results widths are the `*_W` consts — keep them in sync with
   the components' `w-[…]` classes.
 - Drag handle uses `data-tauri-drag-region`; double-click maximize is disabled
-  (`onDoubleClick preventDefault` + `maximizable:false` on the window).
+  (`onDoubleClick preventDefault` + `maximizable:false` on the window). The handle
+  needs `core:window:allow-start-dragging` in capabilities — `core:default` doesn't
+  grant it, and without it the drag is silently denied (no error, just nothing moves).
 
 ## `SettingsView.tsx`
 

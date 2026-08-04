@@ -173,7 +173,9 @@ so growth never runs off-screen. All geometry is physical px on the Rust side.
 ## Capabilities & plugins
 
 `src-tauri/capabilities/default.json` applies to windows `menu`, `settings`:
-`core:default`, `core:window:allow-set-size`, `store:default`, `dialog:default`.
+`core:default`, `core:window:allow-set-size`, `core:window:allow-start-dragging`,
+`store:default`, `dialog:default`. `allow-start-dragging` is what makes the
+`data-tauri-drag-region` handle work — `core:default` only grants window *getters*.
 Any new mutating core window/webview JS API needs its permission added here.
 
 ## Build, test, bundle
