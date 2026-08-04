@@ -107,11 +107,22 @@ fn list_system_fonts(app: AppHandle) -> Result<Vec<String>, String> {
 fn open_settings_window(app: AppHandle) -> tauri::Result<()> {
     let win = match app.get_webview_window(SETTINGS_LABEL) {
         Some(win) => win,
-        None => WebviewWindowBuilder::new(&app, SETTINGS_LABEL, WebviewUrl::default())
-            .title("ACM Settings")
-            .inner_size(560.0, 460.0)
-            .resizable(true)
-            .build()?,
+        None => {
+            let win = WebviewWindowBuilder::new(&app, SETTINGS_LABEL, WebviewUrl::default())
+                .title("ACM Settings")
+                .inner_size(560.0, 460.0)
+                .resizable(true)
+                .build()?;
+            // When settings loses focus to another app, close the overlay too
+            // (unless focus went to the overlay itself) — see schedule_focus_check.
+            let handle = app.clone();
+            win.on_window_event(move |event| {
+                if let WindowEvent::Focused(false) = event {
+                    schedule_focus_check(&handle);
+                }
+            });
+            win
+        }
     };
     win.show()?;
     win.set_focus()?;
@@ -218,6 +229,35 @@ fn clamp_menu(app: AppHandle) {
     }
 }
 
+/// After a short delay (so focus has time to settle on whichever window the user
+/// clicked), hide the overlay unless one of our own windows still holds focus.
+/// This closes the overlay when focus leaves the app entirely — including when
+/// the settings window loses focus to another app — while keeping it open as the
+/// user moves between the overlay and settings.
+fn schedule_focus_check(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(120));
+        let app2 = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let ours_focused = [MENU_LABEL, SETTINGS_LABEL].iter().any(|label| {
+                app2.get_webview_window(label)
+                    .and_then(|w| w.is_focused().ok())
+                    .unwrap_or(false)
+            });
+            if ours_focused {
+                return;
+            }
+            if let Some(menu) = app2.get_webview_window(MENU_LABEL) {
+                if menu.is_visible().unwrap_or(false) {
+                    save_menu_position(&app2);
+                    let _ = menu.hide();
+                }
+            }
+        });
+    });
+}
+
 /// Show the menu overlay and hand it keyboard focus. Positions at the cursor, or
 /// restores the last position when "open where I left it" is enabled (§7).
 fn show_menu(app: &AppHandle) {
@@ -288,20 +328,12 @@ pub fn run() {
             if let Some(menu_win) = app.get_webview_window(MENU_LABEL) {
                 let win = menu_win.clone();
                 menu_win.on_window_event(move |event| {
+                    // On blur, defer and hide only if focus left the app entirely —
+                    // so moving to the settings window keeps the overlay open, but
+                    // clicking another app closes it (settings changes broadcast
+                    // `acm://settings-changed` for live updates while both are open).
                     if let WindowEvent::Focused(false) = event {
-                        let app = win.app_handle();
-                        // Keep the overlay open while the settings window is up, so
-                        // the user can tweak appearance and watch the menu update
-                        // live (settings changes broadcast `acm://settings-changed`).
-                        let settings_open = app
-                            .get_webview_window(SETTINGS_LABEL)
-                            .and_then(|w| w.is_visible().ok())
-                            .unwrap_or(false);
-                        if settings_open {
-                            return;
-                        }
-                        save_menu_position(app);
-                        let _ = win.hide();
+                        schedule_focus_check(win.app_handle());
                     }
                 });
             }
