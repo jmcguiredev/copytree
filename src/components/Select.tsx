@@ -29,9 +29,10 @@ interface Props {
 /**
  * A non-native dropdown styled with the `--acm-*` tokens. The list is portalled
  * to <body> with fixed positioning so it's never clipped by the settings
- * window's scroll container. With `searchable` the trigger is a text input that
- * filters options (a combobox, used for the long font list); otherwise it's a
- * button with type-ahead. Focus stays on the trigger, which handles all keys.
+ * window's scroll container, and sizes to its content (up to a cap) so long
+ * labels stay readable. With `searchable` the trigger is a text input that
+ * filters options (a combobox, used for the long font/language lists);
+ * otherwise it's a button with type-ahead.
  */
 export default function Select({
   value,
@@ -47,13 +48,9 @@ export default function Select({
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const typeahead = useRef({ buf: "", at: 0 });
-  // Refocusing the input after a commit/close would re-fire onFocus → reopen; skip
-  // the open exactly once for that programmatic refocus.
-  const skipFocusOpen = useRef(false);
 
   const selected = options.find((o) => o.value === value);
 
@@ -62,11 +59,6 @@ export default function Select({
     const q = query.toLowerCase();
     return options.filter((o) => o.label.toLowerCase().includes(q));
   }, [options, query, searchable]);
-
-  const focusTrigger = () => {
-    if (searchable) skipFocusOpen.current = true;
-    (searchable ? inputRef.current : buttonRef.current)?.focus();
-  };
 
   const reposition = () => {
     const el = rootRef.current;
@@ -83,15 +75,12 @@ export default function Select({
   const close = () => {
     setOpen(false);
     setQuery("");
-    focusTrigger();
   };
 
   const commit = (idx: number) => {
     const opt = filtered[idx];
     if (opt) onChange(opt.value);
-    setOpen(false);
-    setQuery("");
-    focusTrigger();
+    close();
   };
 
   // Keep the popup pinned to the trigger while scrolling/resizing.
@@ -190,7 +179,7 @@ export default function Select({
     <div ref={rootRef} className={`relative ${className ?? ""}`}>
       {searchable ? (
         <div
-          className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm"
+          className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm"
           style={triggerStyle}
         >
           <input
@@ -200,12 +189,13 @@ export default function Select({
             role="combobox"
             value={open ? query : selected?.label ?? ""}
             placeholder={selected?.label ?? ""}
+            // Open on pointer-down (not just focus, which doesn't re-fire when the
+            // input is already focused — the cause of the "click twice" bug).
+            onMouseDown={() => {
+              if (!open) openMenu();
+            }}
             onFocus={() => {
-              if (skipFocusOpen.current) {
-                skipFocusOpen.current = false;
-                return;
-              }
-              openMenu();
+              if (!open) openMenu();
             }}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -216,13 +206,24 @@ export default function Select({
             className="min-w-0 flex-1 bg-transparent outline-none"
             style={{ ...(selected ? optionStyle?.(selected) : undefined), color: "var(--acm-fg)" }}
           />
-          <span className="shrink-0 text-[10px]" style={{ color: "var(--acm-fg-muted)" }}>
-            ▾
-          </span>
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Toggle options"
+            // preventDefault keeps focus on the input; toggle open/closed.
+            onMouseDown={(e) => {
+              e.preventDefault();
+              if (open) setOpen(false);
+              else openMenu();
+            }}
+            className="flex shrink-0 items-center justify-center"
+            style={{ color: "var(--acm-fg-muted)" }}
+          >
+            <ChevronDown />
+          </button>
         </div>
       ) : (
         <button
-          ref={buttonRef}
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}
@@ -233,8 +234,8 @@ export default function Select({
           style={triggerStyle}
         >
           <span className="truncate">{selected?.label ?? ""}</span>
-          <span className="shrink-0 text-[10px]" style={{ color: "var(--acm-fg-muted)" }}>
-            ▾
+          <span className="flex shrink-0 items-center" style={{ color: "var(--acm-fg-muted)" }}>
+            <ChevronDown />
           </span>
         </button>
       )}
@@ -248,7 +249,11 @@ export default function Select({
             style={{
               top: rect.bottom + 4,
               left: rect.left,
+              // Size to the widest label (readable), floored at the trigger width
+              // and capped so it can't run off-screen; longer labels then ellipsize.
+              width: "max-content",
               minWidth: rect.width,
+              maxWidth: "min(90vw, 360px)",
               maxHeight: 260,
               background: "var(--acm-bg-elevated)",
               borderColor: "var(--acm-border)",
@@ -285,5 +290,22 @@ export default function Select({
           document.body,
         )}
     </div>
+  );
+}
+
+function ChevronDown() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
   );
 }

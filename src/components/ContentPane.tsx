@@ -74,22 +74,21 @@ export default function ContentPane() {
       className="flex min-w-[220px] flex-1 flex-col overflow-hidden"
       style={{ background: "var(--acm-bg-elevated)" }}
     >
-      <div
-        className="flex items-center gap-2 border-b px-3 py-2"
-        style={{ borderColor: "var(--acm-border)" }}
-      >
-        <span className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--acm-fg)" }}>
+      <div className="border-b px-3 py-2" style={{ borderColor: "var(--acm-border)" }}>
+        <div className="truncate text-sm font-medium" style={{ color: "var(--acm-fg)" }}>
           {name}
-        </span>
+        </div>
         {isText && (
-          <Select
-            className="w-32 shrink-0"
-            ariaLabel="Language"
-            searchable
-            value={content.language ?? ""}
-            options={langOptions}
-            onChange={onLanguage}
-          />
+          <div className="mt-1.5">
+            <Select
+              className="w-full max-w-[240px]"
+              ariaLabel="Language"
+              searchable
+              value={content.language ?? ""}
+              options={langOptions}
+              onChange={onLanguage}
+            />
+          </div>
         )}
       </div>
       {error && (
