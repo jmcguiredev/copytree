@@ -1,6 +1,8 @@
-import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { api } from "../api";
-import { applyAppearance, DEFAULTS, loadSettings, setSetting, type Settings } from "../settings";
+import { applyAppearance, DEFAULTS, loadSettings, scaleMin, setSetting, type Settings } from "../settings";
+import NumberField from "../components/NumberField";
+import Select, { type SelectOption } from "../components/Select";
 
 const MODIFIER_CODES = [
   "ShiftLeft",
@@ -42,14 +44,15 @@ function formatHotkey(raw: string): string {
     .join(" ");
 }
 
+// A div (not a <label>) so clicking the label text can't toggle a custom Select.
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex items-center justify-between gap-4 py-2">
+    <div className="flex items-center justify-between gap-4 py-2">
       <span className="text-sm" style={{ color: "var(--acm-fg)" }}>
         {label}
       </span>
       {children}
-    </label>
+    </div>
   );
 }
 
@@ -63,63 +66,50 @@ export default function SettingsView() {
   const [s, setS] = useState<Settings>(DEFAULTS);
   const [capturing, setCapturing] = useState(false);
   const [hotkeyError, setHotkeyError] = useState<string | null>(null);
+  const [fonts, setFonts] = useState<string[]>([]);
 
   useEffect(() => {
     void loadSettings().then((loaded) => {
       setS(loaded);
-      applyAppearance(loaded);
+      // Settings renders at 1× (applyScale=false) so it stays usable regardless
+      // of the menu scale — see applyAppearance.
+      applyAppearance(loaded, false);
     });
+    void api.listSystemFonts().then(setFonts).catch(() => setFonts([]));
   }, []);
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]) {
     setS((prev) => {
       const next = { ...prev, [key]: value };
-      applyAppearance(next);
+      applyAppearance(next, false);
       return next;
     });
     void setSetting(key, value);
   }
 
-  function scaleRow(label: string, key: "scale" | "textScale" | "contentScale") {
-    return (
-      <Field label={label}>
-        <span className="flex items-center gap-2">
-          <input
-            type="range"
-            min={0.1}
-            max={5}
-            step={0.1}
-            value={s[key]}
-            onChange={(e) => update(key, Number(e.target.value))}
-          />
-          <span className="w-10 text-right text-sm tabular-nums" style={{ color: "var(--acm-fg-muted)" }}>
-            {s[key].toFixed(1)}×
-          </span>
-        </span>
-      </Field>
-    );
-  }
+  const fontOptions = useMemo<SelectOption[]>(
+    () => [{ value: "", label: "System Default" }, ...fonts.map((f) => ({ value: f, label: f }))],
+    [fonts],
+  );
 
+  // A labelled numeric field (custom stepper) + a units suffix.
   function numberRow(
     label: string,
-    key: "undoSeconds" | "recentDays" | "maxRecent",
+    key: "scale" | "textScale" | "contentScale" | "undoSeconds" | "recentDays" | "maxRecent",
     min: number,
     max: number,
+    step: number,
     suffix: string,
   ) {
     return (
       <Field label={label}>
         <span className="flex items-center gap-2">
-          <input
-            type="number"
+          <NumberField
+            value={s[key]}
             min={min}
             max={max}
-            value={s[key]}
-            onChange={(e) =>
-              update(key, Math.max(min, Math.min(max, Math.round(Number(e.target.value)))))
-            }
-            className="w-20 rounded-md border px-2 py-1 text-sm"
-            style={inputStyle}
+            step={step}
+            onChange={(v) => update(key, v)}
           />
           <span className="text-xs" style={{ color: "var(--acm-fg-muted)" }}>
             {suffix}
@@ -137,24 +127,50 @@ export default function SettingsView() {
 
       <div className="divide-y" style={{ borderColor: "var(--acm-border)" }}>
         <Field label="Color Scheme">
-          <select
+          <Select
+            className="w-40"
+            ariaLabel="Color Scheme"
             value={s.colorScheme}
-            onChange={(e) => update("colorScheme", e.target.value as Settings["colorScheme"])}
-            className="rounded-md border px-2 py-1 text-sm"
-            style={inputStyle}
-          >
-            <option value="Dark">Dark</option>
-            <option value="Light">Light</option>
-          </select>
+            options={[
+              { value: "Dark", label: "Dark" },
+              { value: "Light", label: "Light" },
+            ]}
+            onChange={(v) => update("colorScheme", v as Settings["colorScheme"])}
+          />
         </Field>
 
-        {scaleRow("Scale", "scale")}
-        {scaleRow("Text Scale", "textScale")}
-        {scaleRow("Content Display Scale", "contentScale")}
+        <Field label="Font">
+          <Select
+            className="w-52"
+            ariaLabel="Font"
+            searchable
+            value={fonts.includes(s.fontFamily) ? s.fontFamily : ""}
+            options={fontOptions}
+            onChange={(v) => update("fontFamily", v)}
+            optionStyle={(o) => (o.value ? { fontFamily: `"${o.value}"` } : undefined)}
+          />
+        </Field>
 
-        {numberRow("Overwritten Item Persistence", "undoSeconds", 0, 60, "seconds (0 disables undo)")}
-        {numberRow("Recent Items Persistence", "recentDays", 0, 30, "days (0 = keep all)")}
-        {numberRow("Max Recent Items", "maxRecent", 0, 100, "items (0 disables)")}
+        {numberRow("Scale", "scale", scaleMin("scale"), 5, 0.1, "×")}
+        {numberRow("Text Scale", "textScale", scaleMin("textScale"), 5, 0.1, "×")}
+        {numberRow("Content Display Scale", "contentScale", scaleMin("contentScale"), 5, 0.1, "×")}
+
+        {numberRow("Overwritten Item Persistence", "undoSeconds", 0, 60, 1, "seconds (0 disables undo)")}
+        {numberRow("Recent Items Persistence", "recentDays", 0, 30, 1, "days (0 = keep all)")}
+        {numberRow("Max Recent Items", "maxRecent", 0, 100, 1, "items (0 disables)")}
+
+        <Field label="Open Position">
+          <Select
+            className="w-40"
+            ariaLabel="Open Position"
+            value={s.openAtCursor ? "cursor" : "last"}
+            options={[
+              { value: "cursor", label: "At cursor" },
+              { value: "last", label: "Where I left it" },
+            ]}
+            onChange={(v) => update("openAtCursor", v === "cursor")}
+          />
+        </Field>
 
         <Field label="Activation Hotkey">
           <span className="flex items-center gap-2">

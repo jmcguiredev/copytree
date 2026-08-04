@@ -21,6 +21,9 @@ pub struct Settings {
     /// Max Recent Items; `0` disables the list.
     pub max_recent: i64,
     pub hotkey: String,
+    /// `true` (default): open the overlay at the cursor each time. `false`: open
+    /// where it was last left (pinned), restored from `menuPosition`.
+    pub open_at_cursor: bool,
 }
 
 /// Read settings from the store, falling back to defaults (and clamping to the
@@ -40,11 +43,17 @@ pub fn load<R: Runtime>(app: &AppHandle<R>) -> Settings {
         .and_then(|v| v.as_str().map(str::to_string))
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| DEFAULT_HOTKEY.to_string());
+    let open_at_cursor = store
+        .as_ref()
+        .and_then(|s| s.get("openAtCursor"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
 
     Settings {
         undo_seconds: int("undoSeconds", 60).clamp(0, 60),
         recent_days: int("recentDays", 1).max(0),
         max_recent: int("maxRecent", 25).clamp(0, 100),
         hotkey,
+        open_at_cursor,
     }
 }

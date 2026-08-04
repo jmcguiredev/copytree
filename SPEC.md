@@ -32,18 +32,27 @@ runtime in `lib.rs` setup). Owns:
   every column + content pane are sibling divs), which is why blur/Escape closes
   everything and the drag handle moves it all.
 - **`settings` window** (label `settings`) — normal decorated window, created on
-  demand from the tray via `open_settings_window`.
+  demand from the tray via `open_settings_window`, which shows + focuses + (macOS)
+  `activateIgnoringOtherApps` so it reliably comes to the front on first open (an
+  Accessory app isn't auto-activated, so a shown window can land behind others).
 
 Frontend routes on `getCurrentWindow().label` in `App.tsx` → `MenuView` or
 `SettingsView`.
 
 ## Open / close (menu)
 
-Open: global hotkey → `show_menu` (Rust) positions the window top-left at the
-global cursor, clamped to the monitor work area, then show + focus. Frontend
-re-inits the tree and re-applies appearance on `onFocusChanged(true)`. Close:
-Escape (frontend → `hide_menu`) or window blur (Rust `WindowEvent::Focused(false)`).
-Position always resets to the cursor on each open; the drag nudge is not persisted.
+Open: global hotkey → `show_menu` (Rust). With `openAtCursor` (default) it positions
+the window top-left at the global cursor; otherwise it restores the last saved
+position (`restore_menu_position`). Either way it clamps to the monitor work area,
+then show + focus. Frontend re-inits the tree and re-applies appearance on
+`onFocusChanged(true)`. Close: Escape (frontend → `hide_menu`, which calls
+`save_menu_geometry`) or focus leaving the app. Blur on any of our windows runs
+`schedule_focus_check`: after ~120ms it hides the overlay (saving geometry first)
+**unless** one of our own windows (overlay or settings) still holds focus — so moving
+between overlay ↔ settings keeps it open, but clicking another app closes it. While both
+are open, settings changes broadcast `acm://settings-changed`, which the (possibly
+unfocused) menu listens for to re-read + re-apply appearance live. `save_menu_geometry`
+persists `menuPosition` (pinned mode) and `menuSize` (always restored on open).
 
 ## Data model (SQLite)
 
@@ -54,7 +63,9 @@ Adjacency-list tree. Schema + triggers live in `db.rs` (`SCHEMA_V1`), applied vi
   position, created_at, updated_at, last_used_at`. Indexes on `(parent_id, position)`
   and `last_used_at`.
 - **`items`** — `node_id (PK/FK), content_type('text'|'image'|'gif'), text_content,
-  blob_path, blob_hash, byte_size, width, height`.
+  blob_path, blob_hash, byte_size, width, height, language`. `language` (schema v2) is
+  the pinned highlight.js language id for text, or NULL to auto-detect at render; paste
+  resets it to NULL.
 - **`item_search`** — FTS5 over `(name, content)`, rowid = node id. **Regular**
   (content-storing) FTS5 table, not contentless: triggers span `nodes.name` and
   `items.text_content`, so old values for a contentless delete aren't available in
@@ -113,6 +124,7 @@ capability entry.
 - `create_item_cmd` → `api.createItem` (text only)
 - `create_file_item_cmd` → `api.createFileItem` (image/gif from a file path)
 - `rename_node_cmd` → `api.renameNode`
+- `set_item_language_cmd` → `api.setItemLanguage` (pin/clear a text item's language)
 - `delete_node_cmd` → `api.deleteNode` (cascades)
 - `move_node_cmd` → `api.moveNode`
 - `copy_item_to_clipboard_cmd` → `api.copyItem` (sets `last_used_at`)
@@ -122,6 +134,7 @@ capability entry.
 - `hide_menu` (`lib.rs`) → `api.hideMenu`
 - `clamp_menu` (`lib.rs`) → `api.clampMenu`
 - `set_activation_hotkey` (`lib.rs`) → `api.setActivationHotkey`
+- `list_system_fonts` (`lib.rs`) → `api.listSystemFonts` (AppKit family names, main-thread)
 - `open_settings_window` (`lib.rs`) — invoked from the tray, not `api`
 
 ## Clipboard & undo
@@ -139,21 +152,39 @@ forces the content pane to refetch.
 
 ## Content display
 
-`get_item_content` returns `ItemContent` (text, or image/gif with an absolute blob
-path + dims). `ContentPane` renders text (2-D scrollable, monospace) and image/gif
-via the **asset protocol** (`convertFileSrc`) — requires the tauri `protocol-asset`
-feature + `security.assetProtocol` scope `$APPDATA/blobs/**` in `tauri.conf.json`.
+`get_item_content` returns `ItemContent` (text + `language`, or image/gif with an
+absolute blob path + dims). `ContentPane` renders text (2-D scrollable, monospace) with
+**highlight.js** syntax highlighting — a pinned `language` or `highlightAuto` when NULL —
+and shows a searchable language picker (text only; `api.setItemLanguage`, `""` = Auto).
+hljs token colors are theme-aware CSS in `index.css` (no external hljs stylesheet). The
+full hljs build is bundled for maximum language coverage. Image/gif render via the
+**asset protocol** (`convertFileSrc`) — requires the tauri `protocol-asset` feature +
+`security.assetProtocol` scope `$APPDATA/blobs/**` in `tauri.conf.json`.
 
 ## Settings
 
 `settings.json` via `tauri-plugin-store`, shared:
 - Rust `settings.rs::load` reads `undoSeconds`, `recentDays`, `maxRecent`, `hotkey`
-  (clamped to ranges); consumed by `get_recent_cmd` and the paste/undo/redo TTL.
+  (clamped to ranges), and `openAtCursor` (bool, default true); consumed by
+  `get_recent_cmd`, the paste/undo/redo TTL, and `show_menu` positioning. The window's
+  last position/size are stored under `menuPosition`/`menuSize` (written by
+  `save_menu_geometry`); `columnWidths` holds the per-depth cascade column widths.
 - Frontend `settings.ts` (`loadSettings`/`setSetting`/`applyAppearance`) + `SettingsView`
-  drive color scheme + the three scales + the recent/undo durations + hotkey capture.
+  drive color scheme + font family + the three scales + the recent/undo durations +
+  open position + hotkey capture. The font list comes from `list_system_fonts`.
+  `columnWidths` (per-depth cascade widths) is written directly by the splitter drag.
 - Appearance applies to the menu on (re)open (re-read, not a live event): `data-theme`,
   root font-size (Text Scale), `body{zoom}` (overall Scale — window `setSize` × `uiScale`
-  to match), `contentScale`.
+  to match), `contentScale`, and `--acm-font` (Font, consumed by `index.css`).
+- **Scale lockout guard**: `scale`/`textScale`/`contentScale` are clamped to
+  `[0.25×default, 5]` in both `loadSettings` and `applyAppearance` (`safeScale`), so a
+  corrupted/empty stored value can't shrink the UI to an unrecoverable size. The
+  **Settings window renders at 1×** (`applyAppearance(s, false)` skips the overall/text
+  scale) so it's always usable and can rescue a bad menu scale — the scale settings size
+  the *menu*, not the control panel.
+- **Settings controls are non-native**: `components/Select.tsx` (portalled dropdown, keyboard
+  nav + type-ahead) and `components/NumberField.tsx` (stepper, commits on blur/Enter,
+  reverts empty input) replace the browser `<select>`/`<input type=number>`.
 
 ## Global hotkey
 
@@ -165,16 +196,28 @@ macOS prompts for Accessibility permission on first registration.
 
 ## Window sizing & positioning
 
-Content-driven: after any layout change the frontend measures desired size and calls
-`getCurrentWindow().setSize(...)` (× `uiScale`), then `clamp_menu` re-clamps the
-window into the monitor `work_area` (shift up/left, top-left origin otherwise fixed)
-so growth never runs off-screen. All geometry is physical px on the Rust side.
+The overlay is **user-resizable** (`resizable:true`, min 320×220). Being borderless,
+it's resized via native drag from `ResizeGrips` (right/bottom/corner zones calling
+`startResizeDragging`; needs `core:window:allow-start-resize-dragging`). Size is
+persisted: `save_menu_geometry` writes `menuSize` (+ `menuPosition`) on hide;
+`restore_menu_size` restores it on open before positioning. There is **no** content-
+driven auto-sizing — the columns + content flex to fill the window.
+
+Inside, each cascade column has a **per-depth-index width** (`settings.columnWidths`,
+default 210), dragged via its right-edge splitter (`MenuColumns`, persisted on drag
+end); the content pane is `flex-1` and fills the remainder, and the row scrolls
+horizontally when columns overflow. Widths are keyed by depth, so any tree at the same
+depth lays out identically. `clamp_menu`/`clamp_window_to_monitor` still keep the window
+on the monitor `work_area`. All Rust-side geometry is physical px.
 
 ## Capabilities & plugins
 
 `src-tauri/capabilities/default.json` applies to windows `menu`, `settings`:
-`core:default`, `core:window:allow-set-size`, `store:default`, `dialog:default`.
-Any new mutating core window/webview JS API needs its permission added here.
+`core:default`, `core:window:allow-set-size`, `core:window:allow-start-dragging`,
+`core:window:allow-start-resize-dragging`, `store:default`, `dialog:default`.
+`allow-start-dragging`/`allow-start-resize-dragging` drive the `data-tauri-drag-region`
+move handle and the `ResizeGrips` — `core:default` only grants window *getters*. Any new
+mutating core window/webview JS API needs its permission added here.
 
 ## Build, test, bundle
 

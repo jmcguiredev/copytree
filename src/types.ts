@@ -23,6 +23,6 @@ export type NewContent = { type: "text"; text: string };
 // An item's stored content for display. Blob variants carry an absolute path
 // to be rendered through the Tauri asset protocol.
 export type ItemContent =
-  | { type: "text"; text: string }
+  | { type: "text"; text: string; language: string | null }
   | { type: "image"; path: string; width: number | null; height: number | null }
   | { type: "gif"; path: string; width: number | null; height: number | null };

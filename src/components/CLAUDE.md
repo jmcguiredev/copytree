@@ -5,19 +5,36 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 
 ## Pieces
 
-- `MenuColumns.tsx` → `NodeRow.tsx` — the cascade. Each column renders one level;
+- `MenuColumns.tsx` → `NodeRow.tsx` — the cascade. Each column has a per-depth-index
+  width (`store.columnWidths` / `columnWidth()`, default `DEFAULT_COL_W`) resized by its
+  right-edge splitter and persisted to `settings.columnWidths` on drag end; the content
+  pane flexes to fill and the row scrolls horizontally when columns overflow. Also renders
+  the inline `DraftRow` (new group/item naming) in the active column. Each column renders
+  one level;
   `NodeRow` shows `›` for groups and highlights focused / open rows. Hover a group
-  expands it (`expandGroup(col,node,false)`); click a group expands + enters; click an
-  item selects it (opens the content pane).
+  expands it (`expandGroup(col,node,false)`); click a group expands + enters. Focusing
+  an item — hover, arrow keys, or entering a group onto it — opens its content pane
+  immediately (no Enter/click needed); the store's `contentForFocus` derives this, so
+  `focusRow`/`moveFocus`/`expandGroup` all set the content pane in lockstep with focus.
 - `SearchResults.tsx` — flat ranked list shown when `searchQuery` is non-empty; rows
   show name + breadcrumb; click / Enter → `openSearchHit`.
 - `SearchBar.tsx` — controlled by `searchQuery`; ArrowDown drops focus into results/rows.
 - `ContentPane.tsx` — fetches `getItemContent` on `[selectedItemId, contentVersion]`;
-  renders text (`<pre>`, 2-D scroll) and image/gif via `convertFileSrc`. Name header
-  resolves from a visible column, else `selectedItemName` (search).
+  renders text (`<pre class="hljs">`, 2-D scroll) with highlight.js (pinned `language` or
+  `highlightAuto`) and image/gif via `convertFileSrc`. Text shows a searchable language
+  picker (`api.setItemLanguage`; `""` = Auto, label shows the detected language). Token
+  colors are theme-aware CSS in `index.css`. Name header resolves from a visible column,
+  else `selectedItemName` (search).
 - `AddRemoveControls.tsx` — `+ / – / Rename`, owns the modal open state; targets the
   focused level / node.
 - `modals.tsx` — Radix `AddModal` / `RenameModal` / `ConfirmDeleteModal`.
+- `Select.tsx` / `NumberField.tsx` — non-native form controls used by `SettingsView`
+  (the native ones felt clunky). `Select` portals its list to `<body>` (fixed position,
+  so the settings scroll container can't clip it) with keyboard nav + type-ahead; with
+  `searchable` the trigger is a typable filtering combobox (the Font picker) and
+  `optionStyle` renders each row in its own font. `NumberField` is a stepper that commits
+  on blur/Enter and reverts empty/invalid input to the last valid value (so a scale field
+  can't be emptied into a lockout).
 
 ## Gotchas
 

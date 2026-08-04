@@ -26,7 +26,8 @@ export default function NodeRow({ node, col }: Props) {
       aria-selected={isFocused}
       onClick={() => void activate(col, node)}
       onMouseEnter={() => {
-        // Hovering a group expands it (PLAN.md §5.3); items just take focus.
+        // Hovering a group expands it (PLAN.md §5.3); hovering an item focuses it,
+        // which opens its content pane immediately (contentForFocus in the store).
         if (isGroup) void expandGroup(col, node, false);
         else focusRow(col, node.id);
       }}

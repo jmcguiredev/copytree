@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { LogicalSize } from "@tauri-apps/api/dpi";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
-import { applyAppearance, loadSettings } from "../settings";
+import { applyAppearance, loadSettings, SETTINGS_CHANGED_EVENT } from "../settings";
 import { focusedNode, useMenu } from "../store";
 import SearchBar from "../components/SearchBar";
 import SearchResults from "../components/SearchResults";
@@ -10,17 +10,10 @@ import MenuColumns from "../components/MenuColumns";
 import ContentPane from "../components/ContentPane";
 import AddRemoveControls from "../components/AddRemoveControls";
 
-const COL_W = 210;
-const CONTENT_W = 320;
-const RESULTS_W = 320;
-
 export default function MenuView() {
   const searchRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const columnCount = useMenu((s) => s.columns.length);
-  const selectedItemId = useMenu((s) => s.selectedItemId);
   const searchActive = useMenu((s) => s.searchQuery.trim().length > 0);
-  const uiScale = useMenu((s) => s.uiScale);
   const init = useMenu((s) => s.init);
   const moveFocus = useMenu((s) => s.moveFocus);
 
@@ -46,8 +39,14 @@ export default function MenuView() {
     const unlisten = win.onFocusChanged(({ payload: focused }) => {
       if (focused) refresh();
     });
+    // Live-apply settings changes while the menu stays open (e.g. the settings
+    // window is up and the overlay is unfocused but visible).
+    const unlistenSettings = listen(SETTINGS_CHANGED_EVENT, () => {
+      void loadSettings().then((s) => applyAppearance(s));
+    });
     return () => {
       void unlisten.then((f) => f());
+      void unlistenSettings.then((f) => f());
     };
   }, [init]);
 
@@ -139,25 +138,14 @@ export default function MenuView() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Grow the native window to fit the columns + content pane. Monitor-aware
-  // re-clamping is milestone 8; for now the top-left origin (set on open) stays
-  // put and the window simply expands rightward.
-  useEffect(() => {
-    const content = selectedItemId != null ? CONTENT_W : 0;
-    const width = searchActive
-      ? 16 + RESULTS_W + content
-      : Math.max(320, 16 + columnCount * COL_W + content);
-    // Body zoom scales the DOM by uiScale; grow the window by the same factor,
-    // then re-clamp to the monitor so growth never runs off-screen (§3, §11.8).
-    void getCurrentWindow()
-      .setSize(new LogicalSize(width * uiScale, 420 * uiScale))
-      .then(() => api.clampMenu());
-  }, [columnCount, selectedItemId, searchActive, uiScale]);
+  // The window is user-resizable and its size is persisted by the backend
+  // (restored on open); the columns/content flex to fill it (see MenuColumns),
+  // so there's no content-driven auto-sizing here anymore.
 
   return (
     <div
       ref={panelRef}
-      className="flex h-screen w-screen flex-col overflow-hidden rounded-xl border p-2"
+      className="relative flex h-screen w-screen flex-col overflow-hidden rounded-xl border p-2"
       style={{ background: "var(--acm-bg)", borderColor: "var(--acm-border)" }}
     >
       <div className="flex items-center gap-2">
@@ -182,12 +170,43 @@ export default function MenuView() {
         />
       </div>
 
-      <div className="mt-2 flex min-h-0 flex-1 overflow-hidden rounded-md border" style={{ borderColor: "var(--acm-border)" }}>
+      <div
+        className="mt-2 flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden rounded-md border"
+        style={{ borderColor: "var(--acm-border)" }}
+      >
         {searchActive ? <SearchResults /> : <MenuColumns />}
         <ContentPane />
       </div>
 
       <AddRemoveControls />
+
+      <ResizeGrips />
     </div>
+  );
+}
+
+// Edge/corner drag zones that resize the borderless window via Tauri's native
+// resize dragging (there are no decorations to grab). Bottom, right, and the
+// bottom-right corner cover height, width, and both.
+function ResizeGrips() {
+  const start = (direction: "East" | "South" | "SouthEast") => (e: ReactMouseEvent) => {
+    e.preventDefault();
+    void getCurrentWindow().startResizeDragging(direction);
+  };
+  return (
+    <>
+      <div
+        onMouseDown={start("East")}
+        className="absolute right-0 top-2 bottom-2 w-1.5 cursor-ew-resize"
+      />
+      <div
+        onMouseDown={start("South")}
+        className="absolute bottom-0 left-2 right-2 h-1.5 cursor-ns-resize"
+      />
+      <div
+        onMouseDown={start("SouthEast")}
+        className="absolute bottom-0 right-0 h-3 w-3 cursor-nwse-resize"
+      />
+    </>
   );
 }

@@ -19,6 +19,8 @@ export const api = {
     invoke<Node>("create_file_item_cmd", { parentId, name, path }),
   renameNode: (id: number, name: string) =>
     invoke<void>("rename_node_cmd", { id, name }),
+  setItemLanguage: (id: number, language: string | null) =>
+    invoke<void>("set_item_language_cmd", { itemId: id, language }),
   deleteNode: (id: number) => invoke<void>("delete_node_cmd", { id }),
   moveNode: (id: number, newParentId: number | null, newPosition: number) =>
     invoke<void>("move_node_cmd", { id, newParentId, newPosition }),
@@ -35,4 +37,7 @@ export const api = {
   // Validate + persist + re-register the global hotkey (PLAN.md §7).
   setActivationHotkey: (shortcut: string) =>
     invoke<void>("set_activation_hotkey", { shortcut }),
+
+  // Installed font family names for the settings font picker.
+  listSystemFonts: () => invoke<string[]>("list_system_fonts"),
 };

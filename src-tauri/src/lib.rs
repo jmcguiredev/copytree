@@ -14,6 +14,8 @@ mod blobs;
 mod clipboard;
 mod commands;
 mod db;
+#[cfg(target_os = "macos")]
+mod fonts;
 mod models;
 mod settings;
 
@@ -50,26 +52,116 @@ fn set_activation_hotkey(app: AppHandle, shortcut: String) -> Result<(), String>
     Ok(())
 }
 
-/// Hide the menu overlay (invoked from the frontend on Escape).
+/// Persist the menu window's current geometry: the top-left (for "open where I
+/// left it" mode) and the size (always restored, since the overlay is now
+/// user-resizable). Called just before every hide, so it captures wherever the
+/// user last dragged/sized the overlay.
+fn save_menu_geometry(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window(MENU_LABEL) {
+        if let Ok(store) = app.store(settings::STORE_PATH) {
+            if let Ok(pos) = win.outer_position() {
+                store.set("menuPosition", serde_json::json!({ "x": pos.x, "y": pos.y }));
+            }
+            if let Ok(size) = win.inner_size() {
+                store.set("menuSize", serde_json::json!({ "w": size.width, "h": size.height }));
+            }
+            let _ = store.save();
+        }
+    }
+}
+
+/// Restore the persisted window size before showing (independent of position
+/// mode). No-op if nothing is saved yet — the conf default size applies.
+fn restore_menu_size(app: &AppHandle) {
+    let Some(win) = app.get_webview_window(MENU_LABEL) else {
+        return;
+    };
+    let saved = app
+        .store(settings::STORE_PATH)
+        .ok()
+        .and_then(|s| s.get("menuSize"));
+    if let Some(v) = saved {
+        if let (Some(w), Some(h)) = (
+            v.get("w").and_then(|n| n.as_u64()),
+            v.get("h").and_then(|n| n.as_u64()),
+        ) {
+            let _ = win.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
+        }
+    }
+}
+
+/// Hide the menu overlay (invoked from the frontend on Escape). Saves the current
+/// position first so pinned mode reopens in place.
 #[tauri::command]
 fn hide_menu(app: AppHandle) {
+    save_menu_geometry(&app);
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
         let _ = win.hide();
     }
 }
 
-/// Open (or focus) the settings window, creating it on first use.
+/// List installed font family names for the settings font picker. Enumerates via
+/// AppKit on the main thread (`NSFontManager` is main-thread-only); returns an
+/// empty list off macOS.
+#[tauri::command]
+fn list_system_fonts(app: AppHandle) -> Result<Vec<String>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let (tx, rx) = std::sync::mpsc::channel();
+        app.run_on_main_thread(move || {
+            let fonts = objc2::MainThreadMarker::new()
+                .map(fonts::available_families)
+                .unwrap_or_default();
+            let _ = tx.send(fonts);
+        })
+        .map_err(|e| e.to_string())?;
+        rx.recv().map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        Ok(Vec::new())
+    }
+}
+
+/// Open (or focus) the settings window, creating it on first use. Both paths
+/// show + focus + activate, so it reliably comes to the front on the first open
+/// (previously the create path never focused, so it landed behind other windows).
 #[tauri::command]
 fn open_settings_window(app: AppHandle) -> tauri::Result<()> {
-    if let Some(win) = app.get_webview_window(SETTINGS_LABEL) {
-        win.show()?;
-        win.set_focus()?;
-    } else {
-        WebviewWindowBuilder::new(&app, SETTINGS_LABEL, WebviewUrl::default())
-            .title("ACM Settings")
-            .inner_size(560.0, 460.0)
-            .resizable(true)
-            .build()?;
+    let win = match app.get_webview_window(SETTINGS_LABEL) {
+        Some(win) => win,
+        None => {
+            let win = WebviewWindowBuilder::new(&app, SETTINGS_LABEL, WebviewUrl::default())
+                .title("ACM Settings")
+                .inner_size(560.0, 460.0)
+                .resizable(true)
+                .build()?;
+            // When settings loses focus to another app, close the overlay too
+            // (unless focus went to the overlay itself) — see schedule_focus_check.
+            let handle = app.clone();
+            win.on_window_event(move |event| {
+                if let WindowEvent::Focused(false) = event {
+                    schedule_focus_check(&handle);
+                }
+            });
+            win
+        }
+    };
+    win.show()?;
+    win.set_focus()?;
+    // The app is an Accessory (no dock icon) and so isn't auto-activated; a shown
+    // window can land behind another app's window. Activate the app to raise the
+    // key window to the front.
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.run_on_main_thread(|| {
+            if let Some(mtm) = objc2::MainThreadMarker::new() {
+                #[allow(deprecated)]
+                objc2_app_kit::NSApplication::sharedApplication(mtm)
+                    .activateIgnoringOtherApps(true);
+            }
+        });
     }
     Ok(())
 }
@@ -105,6 +197,30 @@ fn position_menu_at_cursor(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Restore the menu window's saved top-left (pinned / "open where I left it"
+/// mode), then clamp it onto the current monitor. Falls back to the cursor when
+/// there is no saved position yet.
+fn restore_menu_position(app: &AppHandle) -> tauri::Result<()> {
+    let Some(win) = app.get_webview_window(MENU_LABEL) else {
+        return Ok(());
+    };
+    let saved = app
+        .store(settings::STORE_PATH)
+        .ok()
+        .and_then(|s| s.get("menuPosition"));
+    if let Some(v) = saved {
+        if let (Some(x), Some(y)) = (
+            v.get("x").and_then(|n| n.as_i64()),
+            v.get("y").and_then(|n| n.as_i64()),
+        ) {
+            win.set_position(PhysicalPosition::new(x as i32, y as i32))?;
+            clamp_window_to_monitor(&win)?;
+            return Ok(());
+        }
+    }
+    position_menu_at_cursor(app)
+}
+
 /// Shift a window up/left so it fits within its monitor's visible work area,
 /// keeping the top-left origin otherwise fixed (PLAN.md §3).
 fn clamp_window_to_monitor(win: &tauri::WebviewWindow) -> tauri::Result<()> {
@@ -137,9 +253,45 @@ fn clamp_menu(app: AppHandle) {
     }
 }
 
-/// Show the menu overlay at the cursor and hand it keyboard focus.
+/// After a short delay (so focus has time to settle on whichever window the user
+/// clicked), hide the overlay unless one of our own windows still holds focus.
+/// This closes the overlay when focus leaves the app entirely — including when
+/// the settings window loses focus to another app — while keeping it open as the
+/// user moves between the overlay and settings.
+fn schedule_focus_check(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(120));
+        let app2 = app.clone();
+        let _ = app.run_on_main_thread(move || {
+            let ours_focused = [MENU_LABEL, SETTINGS_LABEL].iter().any(|label| {
+                app2.get_webview_window(label)
+                    .and_then(|w| w.is_focused().ok())
+                    .unwrap_or(false)
+            });
+            if ours_focused {
+                return;
+            }
+            if let Some(menu) = app2.get_webview_window(MENU_LABEL) {
+                if menu.is_visible().unwrap_or(false) {
+                    save_menu_geometry(&app2);
+                    let _ = menu.hide();
+                }
+            }
+        });
+    });
+}
+
+/// Show the menu overlay and hand it keyboard focus. Positions at the cursor, or
+/// restores the last position when "open where I left it" is enabled (§7).
 fn show_menu(app: &AppHandle) {
-    let _ = position_menu_at_cursor(app);
+    // Restore the saved size first so positioning clamps against the real size.
+    restore_menu_size(app);
+    if settings::load(app).open_at_cursor {
+        let _ = position_menu_at_cursor(app);
+    } else {
+        let _ = restore_menu_position(app);
+    }
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
         let _ = win.show();
         let _ = win.set_focus();
@@ -202,8 +354,12 @@ pub fn run() {
             if let Some(menu_win) = app.get_webview_window(MENU_LABEL) {
                 let win = menu_win.clone();
                 menu_win.on_window_event(move |event| {
+                    // On blur, defer and hide only if focus left the app entirely —
+                    // so moving to the settings window keeps the overlay open, but
+                    // clicking another app closes it (settings changes broadcast
+                    // `acm://settings-changed` for live updates while both are open).
                     if let WindowEvent::Focused(false) = event {
-                        let _ = win.hide();
+                        schedule_focus_check(win.app_handle());
                     }
                 });
             }
@@ -215,6 +371,7 @@ pub fn run() {
             open_settings_window,
             set_activation_hotkey,
             clamp_menu,
+            list_system_fonts,
             commands::list_children_cmd,
             commands::get_node_cmd,
             commands::get_item_content_cmd,
@@ -224,6 +381,7 @@ pub fn run() {
             commands::create_item_cmd,
             commands::create_file_item_cmd,
             commands::rename_node_cmd,
+            commands::set_item_language_cmd,
             commands::delete_node_cmd,
             commands::move_node_cmd,
             commands::copy_item_to_clipboard_cmd,

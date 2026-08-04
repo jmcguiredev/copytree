@@ -21,11 +21,16 @@ Single source of menu UI state:
 - `columns[]` — one per open level; `columns[0]` = root children **with the virtual
   Recent Items group** (`RECENT_ID = -1`) pinned first. `loadColumn(parentId)` handles
   the sentinel (calls `getRecent`) and re-prepends Recent for the root column.
-- `focus {col,id}` — keyboard cursor. `selectedItemId` — content-pane item;
-  `selectedItemName` — header fallback for search hits not in a column.
+- `focus {col,id}` — keyboard cursor. `selectedItemId` — content-pane item, kept in
+  lockstep with focus by `contentForFocus` (an item shows its content the moment it's
+  focused via hover/arrows/group-enter; a group clears it). `selectedItemName` — header
+  fallback for search hits not in a column.
 - Search mode: `searchQuery`/`searchResults`/`searchFocus`. Non-empty query ⇒
   `MenuView` shows `SearchResults` instead of columns.
-- `contentScale`/`uiScale` — set by `applyAppearance`; `contentVersion` bump forces
+- `draft {col,kind}` — inline new-group/item being named in a column;
+  `beginDraft`/`commitDraft` (empty name cancels; items created empty, filled by paste).
+- `contentScale`/`uiScale`/`columnWidths` — set by `applyAppearance` (from settings);
+  `columnWidths` is also updated live during a splitter drag. `contentVersion` bump forces
   the content pane to refetch (after paste/undo/redo).
 - Gotcha: mutating actions map `RECENT_ID` parent → root (`null`); you can't add into
   the virtual group. Deeper columns are truncated on focus change/selection.
@@ -34,6 +39,15 @@ Single source of menu UI state:
 
 `loadSettings()` reads all keys (defaults for missing); `setSetting(k,v)` writes+saves;
 `applyAppearance(s)` sets `data-theme`, root font-size (Text Scale), `body{zoom}`
-(overall Scale), and pushes `contentScale`/`uiScale` into the store. The store file is
-shared with Rust — keep key names in sync with `settings.rs`. The **hotkey** is changed
-via `api.setActivationHotkey` (Rust re-registers + persists), not `setSetting`.
+(overall Scale), the `--acm-font` custom property (Font), and pushes
+`contentScale`/`uiScale` into the store. The store file is shared with Rust — keep key
+names in sync with `settings.rs`. The **hotkey** is changed via `api.setActivationHotkey`
+(Rust re-registers + persists), not `setSetting`.
+
+**Scale lockout guard**: `scale`/`textScale`/`contentScale` (`SCALE_KEYS`) run through
+`safeScale` — clamped to `[0.25×default, 5]` — in both `loadSettings` and
+`applyAppearance`, so a null/0/typo'd value can't shrink the UI past recovery. The
+Settings inputs use `scaleMin(key)` as their floor, and `SettingsView` calls
+`applyAppearance(s, false)` so the settings window itself renders at 1× (always usable,
+rescues a bad menu scale). **Font** family names come from `api.listSystemFonts`
+(WKWebView has no `queryLocalFonts`).

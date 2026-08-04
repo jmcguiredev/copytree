@@ -31,11 +31,123 @@ body,
   margin: 0;
   background: transparent;
   color: var(--acm-fg);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  /* --acm-font is set by applyAppearance from the Font setting; when unset the
+     fallback list (the system stack) applies. */
+  font-family: var(
+    --acm-font,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "SF Pro Text",
+    "Segoe UI",
+    sans-serif
+  );
   -webkit-font-smoothing: antialiased;
 }
 
 .acm-solid {
   background: var(--acm-bg);
+}
+
+/* Column resize splitter: invisible until hovered/dragged. */
+.acm-col-splitter:hover,
+.acm-col-splitter:active {
+  background: var(--acm-accent);
+  opacity: 0.6;
+}
+
+/* highlight.js token colors, theme-aware (self-contained — no external hljs CSS).
+   Base values suit the dark theme; the light theme overrides the hues below. */
+.hljs {
+  color: var(--acm-fg);
+  background: transparent;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #6b7089;
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag {
+  color: #c792ea;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-addition,
+.hljs-regexp {
+  color: #c3e88d;
+}
+.hljs-number,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+  color: #f78c6c;
+}
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.function_,
+.hljs-section {
+  color: #82aaff;
+}
+.hljs-attribute,
+.hljs-variable,
+.hljs-symbol,
+.hljs-bullet {
+  color: #ffcb6b;
+}
+.hljs-deletion {
+  color: #ff5370;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: bold;
+}
+
+:root[data-theme="light"] .hljs-comment,
+:root[data-theme="light"] .hljs-quote {
+  color: #9aa0a6;
+}
+:root[data-theme="light"] .hljs-keyword,
+:root[data-theme="light"] .hljs-selector-tag,
+:root[data-theme="light"] .hljs-built_in,
+:root[data-theme="light"] .hljs-name,
+:root[data-theme="light"] .hljs-tag {
+  color: #9c27b0;
+}
+:root[data-theme="light"] .hljs-string,
+:root[data-theme="light"] .hljs-attr,
+:root[data-theme="light"] .hljs-template-tag,
+:root[data-theme="light"] .hljs-template-variable,
+:root[data-theme="light"] .hljs-addition,
+:root[data-theme="light"] .hljs-regexp {
+  color: #388e3c;
+}
+:root[data-theme="light"] .hljs-number,
+:root[data-theme="light"] .hljs-literal,
+:root[data-theme="light"] .hljs-type,
+:root[data-theme="light"] .hljs-params,
+:root[data-theme="light"] .hljs-meta,
+:root[data-theme="light"] .hljs-link {
+  color: #e65100;
+}
+:root[data-theme="light"] .hljs-title,
+:root[data-theme="light"] .hljs-title.class_,
+:root[data-theme="light"] .hljs-title.function_,
+:root[data-theme="light"] .hljs-section {
+  color: #1565c0;
+}
+:root[data-theme="light"] .hljs-attribute,
+:root[data-theme="light"] .hljs-variable,
+:root[data-theme="light"] .hljs-symbol,
+:root[data-theme="light"] .hljs-bullet {
+  color: #b8860b;
 }
