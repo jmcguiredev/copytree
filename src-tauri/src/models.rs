@@ -40,6 +40,8 @@ pub struct SearchHit {
 pub enum ItemContent {
     Text {
         text: String,
+        /// Pinned highlight.js language id, or null to auto-detect at render.
+        language: Option<String>,
     },
     Image {
         path: String,

@@ -355,6 +355,7 @@ pub fn run() {
             commands::create_item_cmd,
             commands::create_file_item_cmd,
             commands::rename_node_cmd,
+            commands::set_item_language_cmd,
             commands::delete_node_cmd,
             commands::move_node_cmd,
             commands::copy_item_to_clipboard_cmd,

@@ -24,8 +24,9 @@ Working context for the Tauri/Rust side. See `SPEC.md` for the full map.
   `SCHEMA_V1`. `recursive_triggers=ON` is required so cascade deletes clear it — if
   you change delete paths, keep the trigger-firing behavior. Editing `text_content`
   is what re-indexes content (trigger is `AFTER UPDATE OF text_content`).
-- **Migrations**: bump via `PRAGMA user_version`; add a `SCHEMA_V2` block guarded by
-  `if version < 2`. Never edit `SCHEMA_V1` for existing installs.
+- **Migrations**: bump via `PRAGMA user_version`; each `SCHEMA_Vn` block is guarded by
+  `if version < n`. Never edit an existing block for shipped installs. `SCHEMA_V2` adds
+  `items.language` (text-item highlight language; NULL = auto-detect).
 - **Blobs**: content-addressed (`store_bytes`), deduped by sha256. Do **not** delete
   blobs on overwrite/undo — they may be shared. No GC yet.
 - **Clipboard is macOS-only** (`objc2-app-kit`), deps target-gated to macOS. Type

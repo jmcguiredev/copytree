@@ -62,7 +62,9 @@ Adjacency-list tree. Schema + triggers live in `db.rs` (`SCHEMA_V1`), applied vi
   position, created_at, updated_at, last_used_at`. Indexes on `(parent_id, position)`
   and `last_used_at`.
 - **`items`** — `node_id (PK/FK), content_type('text'|'image'|'gif'), text_content,
-  blob_path, blob_hash, byte_size, width, height`.
+  blob_path, blob_hash, byte_size, width, height, language`. `language` (schema v2) is
+  the pinned highlight.js language id for text, or NULL to auto-detect at render; paste
+  resets it to NULL.
 - **`item_search`** — FTS5 over `(name, content)`, rowid = node id. **Regular**
   (content-storing) FTS5 table, not contentless: triggers span `nodes.name` and
   `items.text_content`, so old values for a contentless delete aren't available in
@@ -121,6 +123,7 @@ capability entry.
 - `create_item_cmd` → `api.createItem` (text only)
 - `create_file_item_cmd` → `api.createFileItem` (image/gif from a file path)
 - `rename_node_cmd` → `api.renameNode`
+- `set_item_language_cmd` → `api.setItemLanguage` (pin/clear a text item's language)
 - `delete_node_cmd` → `api.deleteNode` (cascades)
 - `move_node_cmd` → `api.moveNode`
 - `copy_item_to_clipboard_cmd` → `api.copyItem` (sets `last_used_at`)
@@ -148,10 +151,14 @@ forces the content pane to refetch.
 
 ## Content display
 
-`get_item_content` returns `ItemContent` (text, or image/gif with an absolute blob
-path + dims). `ContentPane` renders text (2-D scrollable, monospace) and image/gif
-via the **asset protocol** (`convertFileSrc`) — requires the tauri `protocol-asset`
-feature + `security.assetProtocol` scope `$APPDATA/blobs/**` in `tauri.conf.json`.
+`get_item_content` returns `ItemContent` (text + `language`, or image/gif with an
+absolute blob path + dims). `ContentPane` renders text (2-D scrollable, monospace) with
+**highlight.js** syntax highlighting — a pinned `language` or `highlightAuto` when NULL —
+and shows a searchable language picker (text only; `api.setItemLanguage`, `""` = Auto).
+hljs token colors are theme-aware CSS in `index.css` (no external hljs stylesheet). The
+full hljs build is bundled for maximum language coverage. Image/gif render via the
+**asset protocol** (`convertFileSrc`) — requires the tauri `protocol-asset` feature +
+`security.assetProtocol` scope `$APPDATA/blobs/**` in `tauri.conf.json`.
 
 ## Settings
 

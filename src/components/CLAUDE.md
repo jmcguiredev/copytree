@@ -15,8 +15,11 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   show name + breadcrumb; click / Enter → `openSearchHit`.
 - `SearchBar.tsx` — controlled by `searchQuery`; ArrowDown drops focus into results/rows.
 - `ContentPane.tsx` — fetches `getItemContent` on `[selectedItemId, contentVersion]`;
-  renders text (`<pre>`, 2-D scroll) and image/gif via `convertFileSrc`. Name header
-  resolves from a visible column, else `selectedItemName` (search).
+  renders text (`<pre class="hljs">`, 2-D scroll) with highlight.js (pinned `language` or
+  `highlightAuto`) and image/gif via `convertFileSrc`. Text shows a searchable language
+  picker (`api.setItemLanguage`; `""` = Auto, label shows the detected language). Token
+  colors are theme-aware CSS in `index.css`. Name header resolves from a visible column,
+  else `selectedItemName` (search).
 - `AddRemoveControls.tsx` — `+ / – / Rename`, owns the modal open state; targets the
   focused level / node.
 - `modals.tsx` — Radix `AddModal` / `RenameModal` / `ConfirmDeleteModal`.

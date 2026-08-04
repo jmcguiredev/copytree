@@ -76,12 +76,21 @@ pub fn configure(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Schema version 2: syntax-highlighting language for text items. NULL means
+/// auto-detect at render (a highlight.js `highlightAuto`); a non-null value is a
+/// language id the user pinned. Never edit SCHEMA_V1 for existing installs.
+const SCHEMA_V2: &str = "ALTER TABLE items ADD COLUMN language TEXT;";
+
 /// Apply pending migrations, tracked via `PRAGMA user_version`.
 pub fn migrate(conn: &Connection) -> rusqlite::Result<()> {
     let version: i64 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if version < 1 {
         conn.execute_batch(SCHEMA_V1)?;
         conn.pragma_update(None, "user_version", 1)?;
+    }
+    if version < 2 {
+        conn.execute_batch(SCHEMA_V2)?;
+        conn.pragma_update(None, "user_version", 2)?;
     }
     Ok(())
 }

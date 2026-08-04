@@ -152,7 +152,8 @@ pub fn get_item_content(
     item_id: i64,
 ) -> rusqlite::Result<Option<ItemContent>> {
     conn.query_row(
-        "SELECT content_type, text_content, blob_path, width, height FROM items WHERE node_id = ?1",
+        "SELECT content_type, text_content, blob_path, width, height, language
+         FROM items WHERE node_id = ?1",
         [item_id],
         |row| {
             let content_type: String = row.get(0)?;
@@ -160,6 +161,7 @@ pub fn get_item_content(
             let blob_path: Option<String> = row.get(2)?;
             let width: Option<i64> = row.get(3)?;
             let height: Option<i64> = row.get(4)?;
+            let language: Option<String> = row.get(5)?;
             let abs = |p: Option<String>| {
                 blobs_dir
                     .join(p.unwrap_or_default())
@@ -169,7 +171,7 @@ pub fn get_item_content(
             Ok(match content_type.as_str() {
                 "image" => ItemContent::Image { path: abs(blob_path), width, height },
                 "gif" => ItemContent::Gif { path: abs(blob_path), width, height },
-                _ => ItemContent::Text { text: text.unwrap_or_default() },
+                _ => ItemContent::Text { text: text.unwrap_or_default(), language },
             })
         },
     )
@@ -272,6 +274,19 @@ pub fn get_recent(
         row_to_node,
     )?;
     rows.collect()
+}
+
+/// Pin (or clear, with `None`) a text item's syntax-highlighting language.
+pub fn set_item_language(
+    conn: &Connection,
+    node_id: i64,
+    language: Option<&str>,
+) -> rusqlite::Result<()> {
+    conn.execute(
+        "UPDATE items SET language = ?2 WHERE node_id = ?1",
+        rusqlite::params![node_id, language],
+    )?;
+    Ok(())
 }
 
 pub fn rename_node(conn: &Connection, id: i64, name: &str) -> rusqlite::Result<()> {
@@ -636,7 +651,9 @@ pub fn paste_clipboard_into_item_cmd(
 
     let ttl = undo_ttl(&app);
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    overwrite_and_record(&conn, &undo.0, item_id, &new, ttl).map_err(|e| e.to_string())
+    overwrite_and_record(&conn, &undo.0, item_id, &new, ttl).map_err(|e| e.to_string())?;
+    // Fresh content re-detects its language on next render.
+    set_item_language(&conn, item_id, None).map_err(|e| e.to_string())
 }
 
 /// CMD+Z — restore the pre-paste content. Returns whether anything was undone.
@@ -713,6 +730,16 @@ pub fn create_file_item_cmd(
         create_blob_item(&mut conn, parent_id, &name, "image", &blob, dims)
     };
     node.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_item_language_cmd(
+    db: State<Db>,
+    item_id: i64,
+    language: Option<String>,
+) -> CmdResult<()> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    set_item_language(&conn, item_id, language.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -842,7 +869,7 @@ mod tests {
         let blobs_dir = temp_blobs_dir();
         let item = create_item(&mut conn, None, "Note", &text("multi\nline")).unwrap();
         match get_item_content(&conn, &blobs_dir, item.id).unwrap().unwrap() {
-            ItemContent::Text { text } => assert_eq!(text, "multi\nline"),
+            ItemContent::Text { text, .. } => assert_eq!(text, "multi\nline"),
             other => panic!("expected text, got {other:?}"),
         }
     }
