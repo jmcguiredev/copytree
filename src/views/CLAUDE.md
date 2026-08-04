@@ -7,8 +7,12 @@ The two window roots (routed by label in `App.tsx`). See `SPEC.md`.
 Owns everything that isn't a child component's concern:
 - **On mount + on `onFocusChanged(true)`** (`refresh()`): re-init the tree, re-apply
   appearance (`loadSettings`→`applyAppearance`), focus the search box, and play the
-  open animation (`panelRef.animate`). This is how settings changes take effect live
-  and why re-showing the hidden window resets state.
+  open animation (`panelRef.animate`). This is how re-showing the hidden window resets
+  state and re-applies appearance on refocus.
+- **Live settings**: also listens for `SETTINGS_CHANGED_EVENT` (`acm://settings-changed`,
+  emitted by `setSetting`) and re-applies appearance without a refocus — so while the
+  settings window is open and the overlay stays visible (Rust keeps it open when settings
+  is up), scale/font/theme changes update the menu immediately.
 - **Global keydown** handler (order matters): Escape → `hide_menu`; skip when typing in
   an input/textarea; **clipboard** Cmd/Ctrl+C/V/Z/Shift+Z on the selected/focused item;
   then **search-mode** nav (↑↓/Enter over results) if a query is active; else **tree**

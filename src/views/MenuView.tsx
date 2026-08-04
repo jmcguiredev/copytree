@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
-import { applyAppearance, loadSettings } from "../settings";
+import { applyAppearance, loadSettings, SETTINGS_CHANGED_EVENT } from "../settings";
 import { focusedNode, useMenu } from "../store";
 import SearchBar from "../components/SearchBar";
 import SearchResults from "../components/SearchResults";
@@ -46,8 +47,14 @@ export default function MenuView() {
     const unlisten = win.onFocusChanged(({ payload: focused }) => {
       if (focused) refresh();
     });
+    // Live-apply settings changes while the menu stays open (e.g. the settings
+    // window is up and the overlay is unfocused but visible).
+    const unlistenSettings = listen(SETTINGS_CHANGED_EVENT, () => {
+      void loadSettings().then((s) => applyAppearance(s));
+    });
     return () => {
       void unlisten.then((f) => f());
+      void unlistenSettings.then((f) => f());
     };
   }, [init]);
 

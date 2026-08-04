@@ -100,18 +100,33 @@ fn list_system_fonts(app: AppHandle) -> Result<Vec<String>, String> {
     }
 }
 
-/// Open (or focus) the settings window, creating it on first use.
+/// Open (or focus) the settings window, creating it on first use. Both paths
+/// show + focus + activate, so it reliably comes to the front on the first open
+/// (previously the create path never focused, so it landed behind other windows).
 #[tauri::command]
 fn open_settings_window(app: AppHandle) -> tauri::Result<()> {
-    if let Some(win) = app.get_webview_window(SETTINGS_LABEL) {
-        win.show()?;
-        win.set_focus()?;
-    } else {
-        WebviewWindowBuilder::new(&app, SETTINGS_LABEL, WebviewUrl::default())
+    let win = match app.get_webview_window(SETTINGS_LABEL) {
+        Some(win) => win,
+        None => WebviewWindowBuilder::new(&app, SETTINGS_LABEL, WebviewUrl::default())
             .title("ACM Settings")
             .inner_size(560.0, 460.0)
             .resizable(true)
-            .build()?;
+            .build()?,
+    };
+    win.show()?;
+    win.set_focus()?;
+    // The app is an Accessory (no dock icon) and so isn't auto-activated; a shown
+    // window can land behind another app's window. Activate the app to raise the
+    // key window to the front.
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.run_on_main_thread(|| {
+            if let Some(mtm) = objc2::MainThreadMarker::new() {
+                #[allow(deprecated)]
+                objc2_app_kit::NSApplication::sharedApplication(mtm)
+                    .activateIgnoringOtherApps(true);
+            }
+        });
     }
     Ok(())
 }
@@ -274,7 +289,18 @@ pub fn run() {
                 let win = menu_win.clone();
                 menu_win.on_window_event(move |event| {
                     if let WindowEvent::Focused(false) = event {
-                        save_menu_position(win.app_handle());
+                        let app = win.app_handle();
+                        // Keep the overlay open while the settings window is up, so
+                        // the user can tweak appearance and watch the menu update
+                        // live (settings changes broadcast `acm://settings-changed`).
+                        let settings_open = app
+                            .get_webview_window(SETTINGS_LABEL)
+                            .and_then(|w| w.is_visible().ok())
+                            .unwrap_or(false);
+                        if settings_open {
+                            return;
+                        }
+                        save_menu_position(app);
                         let _ = win.hide();
                     }
                 });

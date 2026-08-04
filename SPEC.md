@@ -32,7 +32,9 @@ runtime in `lib.rs` setup). Owns:
   every column + content pane are sibling divs), which is why blur/Escape closes
   everything and the drag handle moves it all.
 - **`settings` window** (label `settings`) — normal decorated window, created on
-  demand from the tray via `open_settings_window`.
+  demand from the tray via `open_settings_window`, which shows + focuses + (macOS)
+  `activateIgnoringOtherApps` so it reliably comes to the front on first open (an
+  Accessory app isn't auto-activated, so a shown window can land behind others).
 
 Frontend routes on `getCurrentWindow().label` in `App.tsx` → `MenuView` or
 `SettingsView`.
@@ -46,6 +48,10 @@ then show + focus. Frontend re-inits the tree and re-applies appearance on
 `onFocusChanged(true)`. Close: Escape (frontend → `hide_menu`) or window blur (Rust
 `WindowEvent::Focused(false)`) — both call `save_menu_position` first, persisting the
 window's top-left to the store key `menuPosition` so pinned mode reopens in place.
+**Exception**: the blur handler does not hide the menu while the settings window is
+visible, so you can tweak appearance and watch the menu update live — settings changes
+broadcast `acm://settings-changed`, which the (possibly unfocused) menu listens for to
+re-read + re-apply appearance without refocusing.
 
 ## Data model (SQLite)
 

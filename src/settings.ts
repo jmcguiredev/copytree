@@ -1,5 +1,10 @@
 import { load, type Store } from "@tauri-apps/plugin-store";
+import { emit } from "@tauri-apps/api/event";
 import { useMenu } from "./store";
+
+/** Broadcast when a setting changes, so the (possibly unfocused) menu window can
+ *  re-read + re-apply appearance live while the settings window is open. */
+export const SETTINGS_CHANGED_EVENT = "acm://settings-changed";
 
 // Settings persisted in settings.json (PLAN.md §7). Shared with the Rust side
 // through tauri-plugin-store. Appearance keys are applied here; undo/recent/
@@ -73,6 +78,7 @@ export async function setSetting<K extends keyof Settings>(key: K, value: Settin
   const s = await store();
   await s.set(key, value);
   await s.save();
+  void emit(SETTINGS_CHANGED_EVENT);
 }
 
 /** Apply color scheme, font, and the overall/text/content scales (PLAN.md §7).

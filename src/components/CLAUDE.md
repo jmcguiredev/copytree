@@ -22,9 +22,11 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 - `modals.tsx` — Radix `AddModal` / `RenameModal` / `ConfirmDeleteModal`.
 - `Select.tsx` / `NumberField.tsx` — non-native form controls used by `SettingsView`
   (the native ones felt clunky). `Select` portals its list to `<body>` (fixed position,
-  so the settings scroll container can't clip it) with keyboard nav + type-ahead;
-  `NumberField` is a stepper that commits on blur/Enter and reverts empty/invalid input
-  to the last valid value (so a scale field can't be emptied into a lockout).
+  so the settings scroll container can't clip it) with keyboard nav + type-ahead; with
+  `searchable` the trigger is a typable filtering combobox (the Font picker) and
+  `optionStyle` renders each row in its own font. `NumberField` is a stepper that commits
+  on blur/Enter and reverts empty/invalid input to the last valid value (so a scale field
+  can't be emptied into a lockout).
 
 ## Gotchas
 

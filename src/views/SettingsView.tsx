@@ -143,9 +143,11 @@ export default function SettingsView() {
           <Select
             className="w-52"
             ariaLabel="Font"
+            searchable
             value={fonts.includes(s.fontFamily) ? s.fontFamily : ""}
             options={fontOptions}
             onChange={(v) => update("fontFamily", v)}
+            optionStyle={(o) => (o.value ? { fontFamily: `"${o.value}"` } : undefined)}
           />
         </Field>
 
