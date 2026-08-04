@@ -39,11 +39,13 @@ Frontend routes on `getCurrentWindow().label` in `App.tsx` → `MenuView` or
 
 ## Open / close (menu)
 
-Open: global hotkey → `show_menu` (Rust) positions the window top-left at the
-global cursor, clamped to the monitor work area, then show + focus. Frontend
-re-inits the tree and re-applies appearance on `onFocusChanged(true)`. Close:
-Escape (frontend → `hide_menu`) or window blur (Rust `WindowEvent::Focused(false)`).
-Position always resets to the cursor on each open; the drag nudge is not persisted.
+Open: global hotkey → `show_menu` (Rust). With `openAtCursor` (default) it positions
+the window top-left at the global cursor; otherwise it restores the last saved
+position (`restore_menu_position`). Either way it clamps to the monitor work area,
+then show + focus. Frontend re-inits the tree and re-applies appearance on
+`onFocusChanged(true)`. Close: Escape (frontend → `hide_menu`) or window blur (Rust
+`WindowEvent::Focused(false)`) — both call `save_menu_position` first, persisting the
+window's top-left to the store key `menuPosition` so pinned mode reopens in place.
 
 ## Data model (SQLite)
 
@@ -148,7 +150,9 @@ feature + `security.assetProtocol` scope `$APPDATA/blobs/**` in `tauri.conf.json
 
 `settings.json` via `tauri-plugin-store`, shared:
 - Rust `settings.rs::load` reads `undoSeconds`, `recentDays`, `maxRecent`, `hotkey`
-  (clamped to ranges); consumed by `get_recent_cmd` and the paste/undo/redo TTL.
+  (clamped to ranges), and `openAtCursor` (bool, default true); consumed by
+  `get_recent_cmd`, the paste/undo/redo TTL, and `show_menu` positioning. The window's
+  last position is stored separately under `menuPosition` (written by `save_menu_position`).
 - Frontend `settings.ts` (`loadSettings`/`setSetting`/`applyAppearance`) + `SettingsView`
   drive color scheme + the three scales + the recent/undo durations + hotkey capture.
 - Appearance applies to the menu on (re)open (re-read, not a live event): `data-theme`,

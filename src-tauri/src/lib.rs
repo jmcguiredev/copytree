@@ -50,9 +50,25 @@ fn set_activation_hotkey(app: AppHandle, shortcut: String) -> Result<(), String>
     Ok(())
 }
 
-/// Hide the menu overlay (invoked from the frontend on Escape).
+/// Persist the menu window's current top-left so "open where I left it" mode can
+/// restore it. Called just before every hide, so the saved point is wherever the
+/// user last dragged/left the overlay.
+fn save_menu_position(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window(MENU_LABEL) {
+        if let Ok(pos) = win.outer_position() {
+            if let Ok(store) = app.store(settings::STORE_PATH) {
+                store.set("menuPosition", serde_json::json!({ "x": pos.x, "y": pos.y }));
+                let _ = store.save();
+            }
+        }
+    }
+}
+
+/// Hide the menu overlay (invoked from the frontend on Escape). Saves the current
+/// position first so pinned mode reopens in place.
 #[tauri::command]
 fn hide_menu(app: AppHandle) {
+    save_menu_position(&app);
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
         let _ = win.hide();
     }
@@ -105,6 +121,30 @@ fn position_menu_at_cursor(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Restore the menu window's saved top-left (pinned / "open where I left it"
+/// mode), then clamp it onto the current monitor. Falls back to the cursor when
+/// there is no saved position yet.
+fn restore_menu_position(app: &AppHandle) -> tauri::Result<()> {
+    let Some(win) = app.get_webview_window(MENU_LABEL) else {
+        return Ok(());
+    };
+    let saved = app
+        .store(settings::STORE_PATH)
+        .ok()
+        .and_then(|s| s.get("menuPosition"));
+    if let Some(v) = saved {
+        if let (Some(x), Some(y)) = (
+            v.get("x").and_then(|n| n.as_i64()),
+            v.get("y").and_then(|n| n.as_i64()),
+        ) {
+            win.set_position(PhysicalPosition::new(x as i32, y as i32))?;
+            clamp_window_to_monitor(&win)?;
+            return Ok(());
+        }
+    }
+    position_menu_at_cursor(app)
+}
+
 /// Shift a window up/left so it fits within its monitor's visible work area,
 /// keeping the top-left origin otherwise fixed (PLAN.md §3).
 fn clamp_window_to_monitor(win: &tauri::WebviewWindow) -> tauri::Result<()> {
@@ -137,9 +177,14 @@ fn clamp_menu(app: AppHandle) {
     }
 }
 
-/// Show the menu overlay at the cursor and hand it keyboard focus.
+/// Show the menu overlay and hand it keyboard focus. Positions at the cursor, or
+/// restores the last position when "open where I left it" is enabled (§7).
 fn show_menu(app: &AppHandle) {
-    let _ = position_menu_at_cursor(app);
+    if settings::load(app).open_at_cursor {
+        let _ = position_menu_at_cursor(app);
+    } else {
+        let _ = restore_menu_position(app);
+    }
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
         let _ = win.show();
         let _ = win.set_focus();
@@ -203,6 +248,7 @@ pub fn run() {
                 let win = menu_win.clone();
                 menu_win.on_window_event(move |event| {
                     if let WindowEvent::Focused(false) = event {
+                        save_menu_position(win.app_handle());
                         let _ = win.hide();
                     }
                 });

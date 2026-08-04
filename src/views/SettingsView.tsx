@@ -156,6 +156,18 @@ export default function SettingsView() {
         {numberRow("Recent Items Persistence", "recentDays", 0, 30, "days (0 = keep all)")}
         {numberRow("Max Recent Items", "maxRecent", 0, 100, "items (0 disables)")}
 
+        <Field label="Open Position">
+          <select
+            value={s.openAtCursor ? "cursor" : "last"}
+            onChange={(e) => update("openAtCursor", e.target.value === "cursor")}
+            className="rounded-md border px-2 py-1 text-sm"
+            style={inputStyle}
+          >
+            <option value="cursor">At cursor</option>
+            <option value="last">Where I left it</option>
+          </select>
+        </Field>
+
         <Field label="Activation Hotkey">
           <span className="flex items-center gap-2">
             <button

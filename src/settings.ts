@@ -13,6 +13,8 @@ export interface Settings {
   recentDays: number;
   maxRecent: number;
   hotkey: string;
+  /** true: open the menu at the cursor; false: reopen where it was last left. */
+  openAtCursor: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -24,6 +26,7 @@ export const DEFAULTS: Settings = {
   recentDays: 1,
   maxRecent: 25,
   hotkey: "CmdOrCtrl+Shift+KeyV",
+  openAtCursor: true,
 };
 
 let storePromise: Promise<Store> | null = null;
