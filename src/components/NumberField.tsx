@@ -76,25 +76,46 @@ export default function NumberField({ value, min, max, step, onChange, className
         style={{ color: "var(--acm-fg)" }}
       />
       <div className="flex flex-col border-l" style={{ borderColor: "var(--acm-border)" }}>
-        <StepButton dir="▲" onClick={() => nudge(1)} />
-        <StepButton dir="▼" onClick={() => nudge(-1)} border />
+        <StepButton dir="up" onClick={() => nudge(1)} />
+        <StepButton dir="down" onClick={() => nudge(-1)} border />
       </div>
     </div>
   );
 }
 
-function StepButton({ dir, onClick, border }: { dir: string; onClick: () => void; border?: boolean }) {
+function StepButton({
+  dir,
+  onClick,
+  border,
+}: {
+  dir: "up" | "down";
+  onClick: () => void;
+  border?: boolean;
+}) {
   return (
     <button
       type="button"
       tabIndex={-1}
+      aria-label={dir === "up" ? "Increase" : "Decrease"}
       // Keep focus on the input so clicking a stepper doesn't fire a blur-commit.
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      className={`flex h-3.5 w-6 items-center justify-center text-[8px] leading-none ${border ? "border-t" : ""}`}
+      className={`flex w-7 flex-1 items-center justify-center ${border ? "border-t" : ""}`}
       style={{ color: "var(--acm-fg-muted)", borderColor: "var(--acm-border)" }}
     >
-      {dir}
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ transform: dir === "up" ? "rotate(180deg)" : undefined }}
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
     </button>
   );
 }

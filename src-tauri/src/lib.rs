@@ -137,12 +137,20 @@ fn open_settings_window(app: AppHandle) -> tauri::Result<()> {
                 .inner_size(560.0, 460.0)
                 .resizable(true)
                 .build()?;
-            // When settings loses focus to another app, close the overlay too
-            // (unless focus went to the overlay itself) — see schedule_focus_check.
             let handle = app.clone();
             win.on_window_event(move |event| {
-                if let WindowEvent::Focused(false) = event {
-                    schedule_focus_check(&handle);
+                if let WindowEvent::Focused(focused) = event {
+                    if *focused {
+                        // Let the settings window come in front of the always-on-top
+                        // overlay while it's focused.
+                        if let Some(menu) = handle.get_webview_window(MENU_LABEL) {
+                            let _ = menu.set_always_on_top(false);
+                        }
+                    } else {
+                        // Focus left settings: close the overlay too unless focus went
+                        // to the overlay itself — see schedule_focus_check.
+                        schedule_focus_check(&handle);
+                    }
                 }
             });
             win
@@ -293,6 +301,8 @@ fn show_menu(app: &AppHandle) {
         let _ = restore_menu_position(app);
     }
     if let Some(win) = app.get_webview_window(MENU_LABEL) {
+        // Re-assert always-on-top: a prior settings focus may have lowered it.
+        let _ = win.set_always_on_top(true);
         let _ = win.show();
         let _ = win.set_focus();
     }
@@ -354,12 +364,18 @@ pub fn run() {
             if let Some(menu_win) = app.get_webview_window(MENU_LABEL) {
                 let win = menu_win.clone();
                 menu_win.on_window_event(move |event| {
-                    // On blur, defer and hide only if focus left the app entirely —
-                    // so moving to the settings window keeps the overlay open, but
-                    // clicking another app closes it (settings changes broadcast
-                    // `acm://settings-changed` for live updates while both are open).
-                    if let WindowEvent::Focused(false) = event {
-                        schedule_focus_check(win.app_handle());
+                    if let WindowEvent::Focused(focused) = event {
+                        if *focused {
+                            // Regained focus — float above other windows again
+                            // (settings drops us below itself while it's focused).
+                            let _ = win.set_always_on_top(true);
+                        } else {
+                            // On blur, defer and hide only if focus left the app
+                            // entirely — moving to the settings window keeps the
+                            // overlay open (settings changes broadcast
+                            // `acm://settings-changed` for live updates).
+                            schedule_focus_check(win.app_handle());
+                        }
                     }
                 });
             }

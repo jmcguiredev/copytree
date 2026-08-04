@@ -92,18 +92,23 @@ export default function SettingsView() {
     [fonts],
   );
 
-  // A labelled numeric field (custom stepper) + a units suffix.
+  // A labelled numeric field (custom stepper) with an optional hint to its left.
   function numberRow(
     label: string,
     key: "scale" | "textScale" | "contentScale" | "undoSeconds" | "recentDays" | "maxRecent",
     min: number,
     max: number,
     step: number,
-    suffix: string,
+    hint?: string,
   ) {
     return (
       <Field label={label}>
         <span className="flex items-center gap-2">
+          {hint && (
+            <span className="text-xs" style={{ color: "var(--acm-fg-muted)" }}>
+              {hint}
+            </span>
+          )}
           <NumberField
             value={s[key]}
             min={min}
@@ -111,9 +116,6 @@ export default function SettingsView() {
             step={step}
             onChange={(v) => update(key, v)}
           />
-          <span className="text-xs" style={{ color: "var(--acm-fg-muted)" }}>
-            {suffix}
-          </span>
         </span>
       </Field>
     );
@@ -151,9 +153,9 @@ export default function SettingsView() {
           />
         </Field>
 
-        {numberRow("Scale", "scale", scaleMin("scale"), 5, 0.1, "×")}
-        {numberRow("Text Scale", "textScale", scaleMin("textScale"), 5, 0.1, "×")}
-        {numberRow("Content Display Scale", "contentScale", scaleMin("contentScale"), 5, 0.1, "×")}
+        {numberRow("Scale", "scale", scaleMin("scale"), 5, 0.1)}
+        {numberRow("Text Scale", "textScale", scaleMin("textScale"), 5, 0.1)}
+        {numberRow("Content Display Scale", "contentScale", scaleMin("contentScale"), 5, 0.1)}
 
         {numberRow("Overwritten Item Persistence", "undoSeconds", 0, 60, 1, "seconds (0 disables undo)")}
         {numberRow("Recent Items Persistence", "recentDays", 0, 30, 1, "days (0 = keep all)")}
