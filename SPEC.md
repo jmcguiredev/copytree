@@ -1,8 +1,8 @@
 # SPEC.md — ACM architecture & wiring
 
 Architectural reference for ACM (Advanced Clipboard Manager). Headers are kept
-short and greppable. For per-area working notes see the `NOTES.md` in each source
-folder. Keep this file current — see "Recycling context" in `CLAUDE.md`.
+short and greppable. For per-area working notes see the nested `CLAUDE.md` in each
+source folder. Keep this file current — see "Recycling context" in the root `CLAUDE.md`.
 
 ACM is a macOS menubar utility: a global hotkey opens a borderless, infinitely
 nestable cascading menu at the cursor for storing/retrieving text, image, and

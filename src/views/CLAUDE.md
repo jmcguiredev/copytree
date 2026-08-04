@@ -1,4 +1,4 @@
-# NOTES — views (`src/views/`)
+# CLAUDE.md — views (`src/views/`)
 
 The two window roots (routed by label in `App.tsx`). See `SPEC.md`.
 

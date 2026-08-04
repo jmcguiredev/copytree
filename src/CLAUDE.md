@@ -1,7 +1,7 @@
-# NOTES — frontend core (`src/`)
+# CLAUDE.md — frontend core (`src/`)
 
 Working context for the top-level frontend modules. UI pieces are in
-`components/NOTES.md` and `views/NOTES.md`. See `SPEC.md` for the full map.
+`components/CLAUDE.md` and `views/CLAUDE.md`. See `SPEC.md` for the full map.
 
 ## Files
 

@@ -1,4 +1,4 @@
-# NOTES — Rust backend (`src-tauri/src/`)
+# CLAUDE.md — Rust backend (`src-tauri/src/`)
 
 Working context for the Tauri/Rust side. See `SPEC.md` for the full map.
 

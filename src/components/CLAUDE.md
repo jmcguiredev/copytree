@@ -1,7 +1,7 @@
-# NOTES — components (`src/components/`)
+# CLAUDE.md — components (`src/components/`)
 
 Presentational pieces of the menu overlay. State lives in `../store.ts`; see
-`../NOTES.md` and `SPEC.md`.
+`../CLAUDE.md` and `SPEC.md`.
 
 ## Pieces
 

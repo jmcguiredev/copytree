@@ -13,12 +13,14 @@ animated-GIF clipboard snippets. No dock icon, dark-mode-first. macOS only.
 - **`SPEC.md`** — architecture and wiring reference (greppable headers): windows,
   data model, the full command list, clipboard/undo, search/recent, settings,
   capabilities, build. Start here for "how does X connect to Y".
-- **`NOTES.md`** in each source folder — practical working context and gotchas for
-  that area: `src-tauri/src/` (backend), `src/` (frontend core), `src/components/`,
-  `src/views/`. Read the one for the folder you're editing.
+- **Nested `CLAUDE.md`** in each source folder — practical working context and gotchas
+  for that area: `src-tauri/src/` (backend), `src/` (frontend core), `src/components/`,
+  `src/views/`. Claude Code auto-loads the one(s) for the folder you're editing; this
+  root file plus that folder's file are the context for a change there.
 
 The full product spec that this was built from is preserved in git history (it was
-tracked as `PLAN.md` up to the initial release); SPEC.md + NOTES.md supersede it.
+tracked as `PLAN.md` up to the initial release); SPEC.md + the nested CLAUDE.md files
+supersede it.
 
 ## Commands
 
@@ -40,7 +42,7 @@ Automated coverage is `cargo test` + `tsc`/`vite build`. The rest is manual: nat
 `NSPasteboard`, the tray/hotkey/overlay interaction, window sizing, drag-to-Applications,
 and Gatekeeper first-open cannot be verified headlessly — exercise them in `pnpm tauri dev`.
 Prefer factoring new backend logic into pure functions over `&Connection` so it can be
-unit-tested without the pasteboard or a window (see `src-tauri/src/NOTES.md`).
+unit-tested without the pasteboard or a window (see `src-tauri/src/CLAUDE.md`).
 
 ## Scope guardrails (non-goals)
 
@@ -48,7 +50,7 @@ No code signing/notarization, no Windows/Linux QA, no system-pasteboard monitori
 (ACM only touches the pasteboard on explicit Cmd+C/Cmd+V), no multi-level undo. Keep code
 portable where it's free, but don't invest in cross-platform work.
 
-## Recycling context (keep SPEC.md & NOTES.md current)
+## Recycling context (keep SPEC.md & the nested CLAUDE.md files current)
 
 These files are the durable memory of the codebase — maintaining them is part of the
 work, not an afterthought. The `/update-context` command runs this review on demand;
@@ -58,10 +60,10 @@ also do it whenever a change lands that affects the notes below.
   removed (keep the "Tauri commands (wiring)" list exact), the DB schema or triggers,
   the window/process model, plugins or capabilities, settings keys, or the build/bundle.
   Edit the relevant greppable section in place; don't append changelog entries.
-- **Update the folder's `NOTES.md`** when you change how that area works or discover a
-  gotcha worth remembering (a non-obvious invariant, a footgun, an extension pattern).
+- **Update the folder's nested `CLAUDE.md`** when you change how that area works or
+  discover a gotcha worth remembering (a non-obvious invariant, a footgun, a pattern).
 - Keep it terse and true: state the current design, not its history (git has history).
   Delete notes that no longer hold. Don't restate what the code plainly shows or
   duplicate the same fact across files — link areas by name instead.
-- After editing code, ask: does any header in SPEC.md or line in a NOTES.md now describe
-  something that changed? If yes, fix it in the same change.
+- After editing code, ask: does any header in SPEC.md or line in a folder CLAUDE.md now
+  describe something that changed? If yes, fix it in the same change.
