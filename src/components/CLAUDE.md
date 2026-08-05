@@ -11,11 +11,17 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   pane flexes to fill and the row scrolls horizontally when columns overflow. Also renders
   the inline `DraftRow` (new group/item naming) in the active column. Each column renders
   one level;
-  `NodeRow` shows `›` for groups and highlights focused / open rows. Hover a group
-  expands it (`expandGroup(col,node,false)`); click a group expands + enters. Focusing
-  an item — hover, arrow keys, or entering a group onto it — opens its content pane
+  `NodeRow` shows `›` for groups and highlights focused / open rows. In the default
+  **hover** select mode, hovering a group expands it (`expandGroup(col,node,false)`) and
+  hovering an item focuses it; in **click** mode (`store.selectMode`), hovering only paints
+  a pre-selection tint (`--acm-hover`) and the click selects. Click a group expands + enters.
+  Focusing an item — hover, arrow keys, or entering a group onto it — opens its content pane
   immediately (no Enter/click needed); the store's `contentForFocus` derives this, so
   `focusRow`/`moveFocus`/`expandGroup` all set the content pane in lockstep with focus.
+  **Double-click** a row → inline `RenameInput` (Enter/blur commits, Escape/empty cancels;
+  Recent group excluded). On focus, a row **scroll-paginates**: if it's outside its column's
+  viewport it teleport-scrolls to the top of the list (its `offsetParent` is the scroll
+  container), so arrow-nav past the fold always reveals the selection.
 - `SearchResults.tsx` — flat ranked list shown when `searchQuery` is non-empty; rows
   show name + breadcrumb; click / Enter → `openSearchHit`.
 - `SearchBar.tsx` — controlled by `searchQuery`; ArrowDown drops focus into results/rows.
@@ -28,6 +34,10 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 - `AddRemoveControls.tsx` — `+ / – / Rename`, owns the modal open state; targets the
   focused level / node.
 - `modals.tsx` — Radix `AddModal` / `RenameModal` / `ConfirmDeleteModal`.
+- `ColorPicker.tsx` — non-native RGB color selector (Theme Color): a swatch trigger opens a
+  portalled popover with three custom draggable R/G/B slider tracks (each a 0→255 channel
+  gradient) plus a hex field; emits `#rrggbb`. Falls back to the live `--acm-accent` when
+  its value is "".
 - `Select.tsx` / `NumberField.tsx` — non-native form controls used by `SettingsView`
   (the native ones felt clunky). `Select` portals its list to `<body>` (fixed position,
   so the settings scroll container can't clip it) with keyboard nav + type-ahead; with

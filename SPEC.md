@@ -173,12 +173,18 @@ full hljs build is bundled for maximum language coverage. Image/gif render via t
   last position/size are stored under `menuPosition`/`menuSize` (written by
   `save_menu_geometry`); `columnWidths` holds the per-depth cascade column widths.
 - Frontend `settings.ts` (`loadSettings`/`setSetting`/`applyAppearance`) + `SettingsView`
-  drive color scheme + font family + the three scales + the recent/undo durations +
-  open position + hotkey capture. The font list comes from `list_system_fonts`.
+  drive color scheme + `accentColor` (Theme Color) + font family + the three scales +
+  the recent/undo durations + `selectMode` (Select Item / Group: hover vs click) +
+  open position + hotkey capture (global activation + app-local `newItemHotkey`/
+  `newGroupHotkey`, defaults `KeyI`/`KeyG`). The font list comes from `list_system_fonts`.
   `columnWidths` (per-depth cascade widths) is written directly by the splitter drag.
+  `shortcutFromEvent` builds the canonical modifier+`code` string used to capture and
+  to match a hotkey at runtime.
 - Appearance applies to the menu on (re)open (re-read, not a live event): `data-theme`,
   root font-size (Text Scale), `body{zoom}` (overall Scale — window `setSize` × `uiScale`
-  to match), `contentScale`, and `--acm-font` (Font, consumed by `index.css`).
+  to match), `contentScale`, `--acm-font` (Font), and `--acm-accent` (Theme Color; cleared
+  → per-theme default). It also seeds behavior state into the store: `selectMode` and the
+  two create hotkeys, so those apply live.
 - **Scale lockout guard**: `scale`/`textScale`/`contentScale` are clamped to
   `[0.25×default, 5]` in both `loadSettings` and `applyAppearance` (`safeScale`), so a
   corrupted/empty stored value can't shrink the UI to an unrecoverable size. The
@@ -186,8 +192,9 @@ full hljs build is bundled for maximum language coverage. Image/gif render via t
   scale) so it's always usable and can rescue a bad menu scale — the scale settings size
   the *menu*, not the control panel.
 - **Settings controls are non-native**: `components/Select.tsx` (portalled dropdown, keyboard
-  nav + type-ahead) and `components/NumberField.tsx` (stepper, commits on blur/Enter,
-  reverts empty input) replace the browser `<select>`/`<input type=number>`.
+  nav + type-ahead), `components/NumberField.tsx` (stepper, commits on blur/Enter, reverts
+  empty input), and `components/ColorPicker.tsx` (portalled popover, draggable R/G/B sliders
+  + hex field) replace the browser `<select>`/`<input type=number|color>`.
 
 ## Global hotkey
 
