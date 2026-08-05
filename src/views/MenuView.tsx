@@ -68,11 +68,12 @@ export default function MenuView() {
       // Clipboard accelerators (PLAN.md §6) — ordinary in-window shortcuts since
       // the menu holds focus. Operate on the selected (or focused) item.
       if (e.metaKey || e.ctrlKey) {
-        // Cmd/Ctrl+↑ jumps the selection to the top of the current list.
-        if (e.key === "ArrowUp") {
+        // Cmd/Ctrl+↑ / ↓ jump the selection to the top / bottom of the list.
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
           e.preventDefault();
-          if (s.searchQuery.trim()) s.moveSearchFocus(-Infinity);
-          else s.moveFocus(-Infinity);
+          const end = e.key === "ArrowUp" ? -Infinity : Infinity;
+          if (s.searchQuery.trim()) s.moveSearchFocus(end);
+          else s.moveFocus(end);
           return;
         }
         const target = s.selectedItemId ?? (node?.kind === "item" ? node.id : null);
@@ -126,6 +127,11 @@ export default function MenuView() {
       if (shortcut === s.newGroupHotkey) {
         e.preventDefault();
         s.beginDraft("group");
+        return;
+      }
+      if (shortcut === s.deleteHotkey) {
+        e.preventDefault();
+        void s.removeFocused();
         return;
       }
 

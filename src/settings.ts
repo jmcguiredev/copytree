@@ -31,6 +31,7 @@ export interface Settings {
    *  Stored as a `shortcutFromEvent` string (modifiers + KeyboardEvent.code). */
   newItemHotkey: string;
   newGroupHotkey: string;
+  deleteHotkey: string;
   /** Per-column-index widths (px) for the cascade; missing indices use the
    *  default. Applied by depth position, so widths are consistent across trees. */
   columnWidths: number[];
@@ -44,13 +45,14 @@ export const DEFAULTS: Settings = {
   undoSeconds: 60,
   recentDays: 1,
   maxRecent: 25,
-  hotkey: "CmdOrCtrl+Shift+KeyV",
+  hotkey: "CmdOrCtrl+Shift+KeyX",
   openAtCursor: true,
   fontFamily: "",
   accentColor: "",
   selectMode: "hover",
   newItemHotkey: "KeyI",
   newGroupHotkey: "KeyG",
+  deleteHotkey: "KeyD",
   columnWidths: [],
 };
 
@@ -155,5 +157,6 @@ export function applyAppearance(s: Settings, applyScale = true) {
     selectMode: s.selectMode === "click" ? "click" : "hover",
     newItemHotkey: s.newItemHotkey,
     newGroupHotkey: s.newGroupHotkey,
+    deleteHotkey: s.deleteHotkey,
   });
 }
