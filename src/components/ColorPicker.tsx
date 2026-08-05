@@ -87,15 +87,39 @@ export default function ColorPicker({ value, onChange, className, ariaLabel }: P
   }, [open]);
 
   const emit = (next: RGB) => {
-    setRgb(next);
-    setHexText(toHex(next));
-    onChange(toHex(next));
+    const norm = next.map(clampByte) as RGB;
+    setRgb(norm);
+    setHexText(toHex(norm));
+    onChange(toHex(norm));
   };
 
   const setChannel = (i: number) => (v: number) => {
     const next = [...rgb] as RGB;
     next[i] = clampByte(v);
     emit(next);
+  };
+
+  // Black level: darkens the color by scaling all channels toward black while
+  // preserving hue/saturation. The slider reads 0 (full brightness) → 255 (black),
+  // so it's the inverse of the color's brightest channel.
+  const maxc = Math.max(rgb[0], rgb[1], rgb[2]);
+  const blackValue = 255 - maxc;
+  const brightest: RGB =
+    maxc === 0 ? [255, 255, 255] : (rgb.map((c) => clampByte((c * 255) / maxc)) as RGB);
+  const setBlack = (v: number) => {
+    const brightness = 255 - clampByte(v);
+    if (brightness <= 0) return emit([0, 0, 0]);
+    if (maxc === 0) return emit([brightness, brightness, brightness]); // gray from black
+    const k = brightness / maxc;
+    emit([rgb[0] * k, rgb[1] * k, rgb[2] * k] as RGB);
+  };
+
+  const channelGradient = (channel: number) => {
+    const lo = [...rgb] as RGB;
+    const hi = [...rgb] as RGB;
+    lo[channel] = 0;
+    hi[channel] = 255;
+    return `linear-gradient(to right, ${toHex(lo)}, ${toHex(hi)})`;
   };
 
   const commitHex = () => {
@@ -141,9 +165,16 @@ export default function ColorPicker({ value, onChange, className, ariaLabel }: P
               color: "var(--acm-fg)",
             }}
           >
-            <ChannelSlider label="R" value={rgb[0]} rgb={rgb} channel={0} onChange={setChannel(0)} />
-            <ChannelSlider label="G" value={rgb[1]} rgb={rgb} channel={1} onChange={setChannel(1)} />
-            <ChannelSlider label="B" value={rgb[2]} rgb={rgb} channel={2} onChange={setChannel(2)} />
+            <Slider label="R" value={rgb[0]} gradient={channelGradient(0)} onChange={setChannel(0)} readout={String(rgb[0])} />
+            <Slider label="G" value={rgb[1]} gradient={channelGradient(1)} onChange={setChannel(1)} readout={String(rgb[1])} />
+            <Slider label="B" value={rgb[2]} gradient={channelGradient(2)} onChange={setChannel(2)} readout={String(rgb[2])} />
+            <Slider
+              label="K"
+              value={blackValue}
+              gradient={`linear-gradient(to right, ${toHex(brightest)}, #000000)`}
+              onChange={setBlack}
+              readout={`${Math.round((blackValue / 255) * 100)}%`}
+            />
 
             <div className="flex items-center gap-2 pt-1">
               <span
@@ -169,21 +200,22 @@ export default function ColorPicker({ value, onChange, className, ariaLabel }: P
   );
 }
 
-// A custom (non-native) draggable channel slider. Its track is a gradient from
-// the channel at 0 to at 255 (holding the other two fixed), so the thumb shows
-// exactly what that channel does to the current color.
-function ChannelSlider({
+// A custom (non-native) draggable slider (0..max) with a caller-supplied track
+// gradient, used for each R/G/B channel and the black-level (K) control.
+function Slider({
   label,
   value,
-  rgb,
-  channel,
+  gradient,
   onChange,
+  readout,
+  max = 255,
 }: {
   label: string;
   value: number;
-  rgb: RGB;
-  channel: number;
+  gradient: string;
   onChange: (v: number) => void;
+  readout: string;
+  max?: number;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -192,7 +224,7 @@ function ChannelSlider({
     if (!el) return value;
     const r = el.getBoundingClientRect();
     const t = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-    return Math.round(t * 255);
+    return Math.round(t * max);
   };
 
   const onDown = (e: ReactPointerEvent) => {
@@ -204,12 +236,6 @@ function ChannelSlider({
     if (e.buttons !== 1) return;
     onChange(fromClientX(e.clientX));
   };
-
-  const lo = [...rgb] as RGB;
-  const hi = [...rgb] as RGB;
-  lo[channel] = 0;
-  hi[channel] = 255;
-  const gradient = `linear-gradient(to right, ${toHex(lo)}, ${toHex(hi)})`;
 
   return (
     <div className="flex items-center gap-2">
@@ -226,14 +252,14 @@ function ChannelSlider({
         <span
           className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
           style={{
-            left: `${(value / 255) * 100}%`,
+            left: `${(value / max) * 100}%`,
             background: "var(--acm-bg-elevated)",
             borderColor: "var(--acm-fg)",
           }}
         />
       </div>
       <span className="w-7 text-right text-xs tabular-nums" style={{ color: "var(--acm-fg-muted)" }}>
-        {value}
+        {readout}
       </span>
     </div>
   );
