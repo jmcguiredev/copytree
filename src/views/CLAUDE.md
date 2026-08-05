@@ -15,12 +15,13 @@ Owns everything that isn't a child component's concern:
   is up), scale/font/theme changes update the menu immediately.
 - **Global keydown** handler (order matters): Escape → `hide_menu`; skip when typing in
   an input/textarea; **clipboard** Cmd/Ctrl+C/V/Z/Shift+Z on the selected/focused item;
-  then **search-mode** nav (↑↓/Enter over results) if a query is active. **Cmd/Ctrl+↑**
-  (handled in the modifier branch) jumps the selection to the top of the current list
-  (search results or column). Else **tree**
-  nav — first the app-local **create hotkeys** (`store.newItemHotkey`/`newGroupHotkey`
-  matched via `shortcutFromEvent` → `beginDraft`; bare-key safe since we're not in a field
-  or search), then (↑↓ within column, →/Enter expand, ← collapse, Enter select).
+  then **search-mode** nav (↑↓/Enter over results) if a query is active. **Cmd/Ctrl+↑ / ↓**
+  (handled in the modifier branch) jump the selection to the top / bottom of the current
+  list (search results or column). Else **tree**
+  nav — first the app-local **create/delete hotkeys** (`store.newItemHotkey`/`newGroupHotkey`
+  → `beginDraft`, `store.deleteHotkey` → `removeFocused` *without a confirm*; matched via
+  `shortcutFromEvent`, bare-key safe since we're not in a field or search), then (↑↓ within
+  column, →/Enter expand, ← collapse, Enter select).
 - **Sizing**: the window is user-resizable and its size is persisted/restored by the
   backend — there's no content-driven `setSize` here. `ResizeGrips` (right/bottom/corner)
   call `getCurrentWindow().startResizeDragging(dir)` to resize the borderless window; the
@@ -33,13 +34,20 @@ Owns everything that isn't a child component's concern:
 ## `SettingsView.tsx`
 
 Loads settings on mount and `applyAppearance`s to itself. Each control → `update()` →
-`setSetting` + `applyAppearance`. The reusable `HotkeyCapture` control captures a keydown
-and builds a `Shortcut` string from modifiers + `e.code` (`hotkeyFromEvent`, `allowBare`
-for the app-local create hotkeys — the global activation hotkey still requires a modifier).
-The **Activation Hotkey** field routes its capture through `api.setActivationHotkey`
-(validates/re-registers/persists, surfaces an error if rejected); the **New Item/Group
-Hotkey** fields just `update()` the setting. Theme Color uses `ColorPicker`. `formatHotkey`
-prettifies for display only.
+`setSetting` + `applyAppearance`. The reusable `HotkeyCapture` control builds a `Shortcut`
+string from modifiers + `e.code` (`hotkeyFromEvent`, `allowBare` for the app-local
+create/delete hotkeys — the global activation hotkey still requires a modifier). **Gotcha:**
+while armed it listens on `window` (keydown accumulates the chord, first **keyup** commits,
+Escape cancels) — a `<button>`-local `onKeyDown` never fired because **WebKit doesn't focus a
+button on click**, which was why "Press keys…" did nothing. The **Activation Hotkey** field
+routes its capture through `api.setActivationHotkey` (validates/re-registers/persists,
+surfaces an error if rejected); the **New Item/Group/Delete Hotkey** fields just `update()`.
+Theme Color uses `ColorPicker`. `formatHotkey` prettifies for display only.
+
+**Configuration / Database import-export** (`ActionButton` → native `save`/`open` dialog →
+the `portation` commands). Config import re-reads the store, re-applies appearance,
+re-registers the hotkey, and emits `SETTINGS_CHANGED_EVENT`; DB import replaces the data and
+the tree shows on the menu's next open.
 
 Gotcha: this project uses the automatic JSX runtime — import React types
 (`type KeyboardEvent as ReactKeyboardEvent`, `type ReactNode`), don't reference `React.*`.

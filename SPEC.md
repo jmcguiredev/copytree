@@ -111,6 +111,9 @@ dedup, so overwrite/undo **never deletes** blob files (no GC yet).
 - `blobs.rs` — content-addressed blob storage (`store_bytes`, sha2).
 - `clipboard.rs` — **macOS only** (`objc2-app-kit`): `NSPasteboard` read/write.
 - `settings.rs` — read `settings.json` for undo/recent/hotkey (Rust-side needs).
+- `portation.rs` — import/export commands: settings as JSON, database as a `zip`
+  bundling `acm.db` + `blobs/` (the `zip` crate). DB import extracts, replaces the
+  files, and swaps the managed connection in place (no restart).
 
 ## Tauri commands (wiring)
 
@@ -138,6 +141,8 @@ capability entry.
 - `clamp_menu` (`lib.rs`) → `api.clampMenu`
 - `set_activation_hotkey` (`lib.rs`) → `api.setActivationHotkey`
 - `list_system_fonts` (`lib.rs`) → `api.listSystemFonts` (AppKit family names, main-thread)
+- `export_settings`/`import_settings` (`portation.rs`) → `api.exportSettings`/`importSettings`
+- `export_database`/`import_database` (`portation.rs`) → `api.exportDatabase`/`importDatabase`
 - `open_settings_window` (`lib.rs`) — invoked from the tray, not `api`
 
 ## Clipboard & undo
@@ -176,7 +181,9 @@ full hljs build is bundled for maximum language coverage. Image/gif render via t
   drive color scheme + `accentColor` (Theme Color) + font family + the three scales +
   the recent/undo durations + `selectMode` (Select Item / Group: hover vs click) +
   open position + hotkey capture (global activation + app-local `newItemHotkey`/
-  `newGroupHotkey`, defaults `KeyI`/`KeyG`). The font list comes from `list_system_fonts`.
+  `newGroupHotkey`/`deleteHotkey`, defaults `KeyI`/`KeyG`/`KeyD`) + Configuration/Database
+  import & export (native dialogs → the `portation` commands). The font list comes from
+  `list_system_fonts`.
   `columnWidths` (per-depth cascade widths) is written directly by the splitter drag.
   `shortcutFromEvent` builds the canonical modifier+`code` string used to capture and
   to match a hotkey at runtime.
@@ -241,7 +248,7 @@ mutating core window/webview JS API needs its permission added here.
 ## Assumptions & deviations
 
 - FTS5 is a regular (not contentless) table — see Data model.
-- Default hotkey `CmdOrCtrl+Shift+KeyV`; Recent default 25 items / 1 day; undo 60s —
+- Default hotkey `CmdOrCtrl+Shift+KeyX`; Recent default 25 items / 1 day; undo 60s —
   all editable, defaults per PLAN assumptions.
 - Settings apply to the menu on next open/focus (re-read), not a live cross-window event.
 - No blob GC (content-addressed/shared).
