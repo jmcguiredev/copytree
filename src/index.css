@@ -59,6 +59,27 @@ body,
   overscroll-behavior: none;
 }
 
+/* The UI chrome (labels, rows, headers, buttons) is not selectable — Cmd+A must
+   not light the app up with a selection. Only editable fields and the content
+   pane (opt in with `.acm-selectable`) allow text selection. */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+input,
+textarea,
+.acm-selectable,
+.acm-selectable * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.acm-selectable {
+  cursor: auto;
+}
+
 /* Column resize splitter: invisible until hovered/dragged. */
 .acm-col-splitter:hover,
 .acm-col-splitter:active {

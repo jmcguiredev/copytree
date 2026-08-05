@@ -98,7 +98,7 @@ export default function ContentPane() {
       )}
       {content?.type === "text" && (
         <pre
-          className="hljs min-h-0 flex-1 overflow-auto p-3 font-mono whitespace-pre"
+          className="acm-selectable hljs min-h-0 flex-1 overflow-auto p-3 font-mono whitespace-pre"
           style={{ background: "transparent", fontSize: `${13 * scale}px`, lineHeight: 1.5 }}
         >
           {highlighted ? (
@@ -109,7 +109,7 @@ export default function ContentPane() {
         </pre>
       )}
       {(content?.type === "image" || content?.type === "gif") && (
-        <div className="min-h-0 flex-1 overflow-auto p-3">
+        <div className="acm-selectable min-h-0 flex-1 overflow-auto p-3">
           <img
             src={convertFileSrc(content.path)}
             alt=""
