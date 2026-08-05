@@ -3,6 +3,7 @@ import { api } from "../api";
 import { applyAppearance, DEFAULTS, loadSettings, scaleMin, setSetting, type Settings } from "../settings";
 import NumberField from "../components/NumberField";
 import Select, { type SelectOption } from "../components/Select";
+import ColorPicker from "../components/ColorPicker";
 
 const MODIFIER_CODES = [
   "ShiftLeft",
@@ -138,6 +139,14 @@ export default function SettingsView() {
               { value: "Light", label: "Light" },
             ]}
             onChange={(v) => update("colorScheme", v as Settings["colorScheme"])}
+          />
+        </Field>
+
+        <Field label="Theme Color">
+          <ColorPicker
+            ariaLabel="Theme Color"
+            value={s.accentColor}
+            onChange={(hex) => update("accentColor", hex)}
           />
         </Field>
 

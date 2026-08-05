@@ -22,6 +22,8 @@ export interface Settings {
   openAtCursor: boolean;
   /** UI font family name; "" = system default stack. */
   fontFamily: string;
+  /** Accent color (selected group/item) as `#rrggbb`; "" = theme default. */
+  accentColor: string;
   /** Per-column-index widths (px) for the cascade; missing indices use the
    *  default. Applied by depth position, so widths are consistent across trees. */
   columnWidths: number[];
@@ -38,6 +40,7 @@ export const DEFAULTS: Settings = {
   hotkey: "CmdOrCtrl+Shift+KeyV",
   openAtCursor: true,
   fontFamily: "",
+  accentColor: "",
   columnWidths: [],
 };
 
@@ -112,6 +115,15 @@ export function applyAppearance(s: Settings, applyScale = true) {
     );
   } else {
     document.documentElement.style.removeProperty("--acm-font");
+  }
+
+  // Accent (selected group/item) color: override the theme's --acm-accent, or
+  // clear it to fall back to the per-theme default from index.css.
+  const accent = s.accentColor.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(accent)) {
+    document.documentElement.style.setProperty("--acm-accent", accent);
+  } else {
+    document.documentElement.style.removeProperty("--acm-accent");
   }
 
   useMenu.setState({
