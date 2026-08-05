@@ -170,6 +170,19 @@ export default function SettingsView() {
         {numberRow("Recent Items Persistence", "recentDays", 0, 30, 1, "days (0 = keep all)")}
         {numberRow("Max Recent Items", "maxRecent", 0, 100, 1, "items (0 disables)")}
 
+        <Field label="Select Item / Group">
+          <Select
+            className="w-40"
+            ariaLabel="Select Item / Group"
+            value={s.selectMode}
+            options={[
+              { value: "hover", label: "On Hover" },
+              { value: "click", label: "On Click" },
+            ]}
+            onChange={(v) => update("selectMode", v as Settings["selectMode"])}
+          />
+        </Field>
+
         <Field label="Open Position">
           <Select
             className="w-40"

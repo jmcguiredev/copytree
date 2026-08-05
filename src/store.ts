@@ -41,6 +41,8 @@ interface MenuState {
   /** Per-column-index widths (px) for the cascade; live during a splitter drag,
    *  seeded from settings on open (applyAppearance). */
   columnWidths: number[];
+  /** Whether hovering or clicking selects a row; seeded from settings. */
+  selectMode: "hover" | "click";
 
   // Search-results mode (PLAN.md §5.2).
   searchQuery: string;
@@ -113,6 +115,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   uiScale: 1,
   contentVersion: 0,
   columnWidths: [],
+  selectMode: "hover",
   searchQuery: "",
   searchResults: [],
   searchFocus: 0,

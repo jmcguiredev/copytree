@@ -24,6 +24,8 @@ export interface Settings {
   fontFamily: string;
   /** Accent color (selected group/item) as `#rrggbb`; "" = theme default. */
   accentColor: string;
+  /** Whether a mouse hover or a click selects a group/item in the cascade. */
+  selectMode: "hover" | "click";
   /** Per-column-index widths (px) for the cascade; missing indices use the
    *  default. Applied by depth position, so widths are consistent across trees. */
   columnWidths: number[];
@@ -41,6 +43,7 @@ export const DEFAULTS: Settings = {
   openAtCursor: true,
   fontFamily: "",
   accentColor: "",
+  selectMode: "hover",
   columnWidths: [],
 };
 
@@ -130,5 +133,6 @@ export function applyAppearance(s: Settings, applyScale = true) {
     contentScale,
     uiScale: scale,
     columnWidths: Array.isArray(s.columnWidths) ? s.columnWidths : [],
+    selectMode: s.selectMode === "click" ? "click" : "hover",
   });
 }

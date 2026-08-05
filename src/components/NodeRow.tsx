@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Node } from "../types";
 import { useMenu } from "../store";
 
@@ -14,6 +15,8 @@ export default function NodeRow({ node, col }: Props) {
   const activate = useMenu((s) => s.activate);
   const expandGroup = useMenu((s) => s.expandGroup);
   const focusRow = useMenu((s) => s.focusRow);
+  const selectMode = useMenu((s) => s.selectMode);
+  const [hovered, setHovered] = useState(false);
 
   const isGroup = node.kind === "group";
   const isFocused = focus.col === col && focus.id === node.id;
@@ -26,18 +29,27 @@ export default function NodeRow({ node, col }: Props) {
       aria-selected={isFocused}
       onClick={() => void activate(col, node)}
       onMouseEnter={() => {
-        // Hovering a group expands it (PLAN.md §5.3); hovering an item focuses it,
-        // which opens its content pane immediately (contentForFocus in the store).
+        // Click-to-select: hovering only shows a pre-selection tint; the click
+        // handler does the selecting. Hover-to-select (default): hovering a group
+        // expands it (PLAN.md §5.3) and hovering an item focuses it, opening its
+        // content pane immediately (contentForFocus in the store).
+        if (selectMode === "click") {
+          setHovered(true);
+          return;
+        }
         if (isGroup) void expandGroup(col, node, false);
         else focusRow(col, node.id);
       }}
+      onMouseLeave={() => setHovered(false)}
       className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm outline-none"
       style={{
         background: isFocused
           ? "var(--acm-accent)"
           : isOpen
             ? "var(--acm-bg-elevated)"
-            : "transparent",
+            : hovered
+              ? "var(--acm-hover)"
+              : "transparent",
         color: isFocused ? "#fff" : "var(--acm-fg)",
       }}
     >
