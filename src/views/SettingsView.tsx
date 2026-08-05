@@ -164,7 +164,7 @@ export default function SettingsView() {
   }
 
   return (
-    <div className="acm-solid min-h-screen w-screen overflow-auto p-8">
+    <div className="acm-solid h-screen w-screen overflow-auto p-8">
       <h1 className="mb-4 text-lg font-semibold" style={{ color: "var(--acm-fg)" }}>
         ACM Settings
       </h1>
