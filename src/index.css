@@ -31,6 +31,9 @@ body,
   margin: 0;
   background: transparent;
   color: var(--acm-fg);
+  /* Kill the document-level trackpad rubber-band (the whole overlay bouncing
+     on an overscroll gesture): the document never scrolls — inner panes do. */
+  overflow: hidden;
   /* --acm-font is set by applyAppearance from the Font setting; when unset the
      fallback list (the system stack) applies. */
   font-family: var(
@@ -47,6 +50,13 @@ body,
 
 .acm-solid {
   background: var(--acm-bg);
+}
+
+/* No jelly/elastic overscroll on any scroll container (columns, content pane,
+   settings). `overscroll-behavior: none` also stops scroll-chaining to the
+   document, so a gesture over an inner pane can't bounce the whole window. */
+* {
+  overscroll-behavior: none;
 }
 
 /* Column resize splitter: invisible until hovered/dragged. */
