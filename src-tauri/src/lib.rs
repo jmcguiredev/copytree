@@ -17,6 +17,7 @@ mod db;
 #[cfg(target_os = "macos")]
 mod fonts;
 mod models;
+mod portation;
 mod settings;
 
 use commands::UndoState;
@@ -404,6 +405,10 @@ pub fn run() {
             commands::paste_clipboard_into_item_cmd,
             commands::undo_paste_cmd,
             commands::redo_paste_cmd,
+            portation::export_settings,
+            portation::import_settings,
+            portation::export_database,
+            portation::import_database,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

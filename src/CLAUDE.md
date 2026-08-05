@@ -29,9 +29,14 @@ Single source of menu UI state:
   `MenuView` shows `SearchResults` instead of columns.
 - `draft {col,kind}` — inline new-group/item being named in a column;
   `beginDraft`/`commitDraft` (empty name cancels; items created empty, filled by paste).
-- `contentScale`/`uiScale`/`columnWidths` — set by `applyAppearance` (from settings);
+- `pendingDelete` — delete-confirm modal open flag (`requestDelete`/`closeDelete`), shared by
+  the Delete hotkey and the – button; `removeFocused` clears it and performs the delete.
+- `contentScale`/`uiScale`/`columnWidths`/`selectMode`/`newItemHotkey`/`newGroupHotkey`/
+  `deleteHotkey` — seeded by `applyAppearance` (from settings) so behavior/appearance apply live;
   `columnWidths` is also updated live during a splitter drag. `contentVersion` bump forces
-  the content pane to refetch (after paste/undo/redo).
+  the content pane to refetch (after paste/undo/redo). `openSeq` bumps in `init` on every
+  overlay (re)open so per-row scroll-into-view effects re-run even when the focused id is
+  unchanged.
 - Gotcha: mutating actions map `RECENT_ID` parent → root (`null`); you can't add into
   the virtual group. Deeper columns are truncated on focus change/selection.
 
@@ -39,10 +44,14 @@ Single source of menu UI state:
 
 `loadSettings()` reads all keys (defaults for missing); `setSetting(k,v)` writes+saves;
 `applyAppearance(s)` sets `data-theme`, root font-size (Text Scale), `body{zoom}`
-(overall Scale), the `--acm-font` custom property (Font), and pushes
-`contentScale`/`uiScale` into the store. The store file is shared with Rust — keep key
-names in sync with `settings.rs`. The **hotkey** is changed via `api.setActivationHotkey`
-(Rust re-registers + persists), not `setSetting`.
+(overall Scale), the `--acm-font` (Font) and `--acm-accent` (Theme Color, cleared →
+per-theme default) custom properties, and pushes `contentScale`/`uiScale`/`selectMode`/
+`newItemHotkey`/`newGroupHotkey` into the store. The store file is shared with Rust —
+keep key names in sync with `settings.rs` (the new frontend-only keys aren't read by
+Rust). The **activation hotkey** is changed via `api.setActivationHotkey` (Rust
+re-registers + persists), not `setSetting`; the **create hotkeys** are plain settings.
+`shortcutFromEvent(e)` is the shared modifier+`code` serializer for both capture and
+runtime matching.
 
 **Scale lockout guard**: `scale`/`textScale`/`contentScale` (`SCALE_KEYS`) run through
 `safeScale` — clamped to `[0.25×default, 5]` — in both `loadSettings` and

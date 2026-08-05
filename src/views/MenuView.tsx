@@ -2,7 +2,7 @@ import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
-import { applyAppearance, loadSettings, SETTINGS_CHANGED_EVENT } from "../settings";
+import { applyAppearance, loadSettings, SETTINGS_CHANGED_EVENT, shortcutFromEvent } from "../settings";
 import { focusedNode, useMenu } from "../store";
 import SearchBar from "../components/SearchBar";
 import SearchResults from "../components/SearchResults";
@@ -54,6 +54,10 @@ export default function MenuView() {
   // input/textarea (search box, modal fields), except Escape which always closes.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // While the delete-confirm modal is open, let it own the keyboard (Radix
+      // handles Escape/Tab): don't hide the overlay or move focus underneath it —
+      // moving focus would change which node the confirmation deletes.
+      if (useMenu.getState().pendingDelete) return;
       if (e.key === "Escape") {
         e.preventDefault();
         void api.hideMenu();
@@ -68,6 +72,14 @@ export default function MenuView() {
       // Clipboard accelerators (PLAN.md §6) — ordinary in-window shortcuts since
       // the menu holds focus. Operate on the selected (or focused) item.
       if (e.metaKey || e.ctrlKey) {
+        // Cmd/Ctrl+↑ / ↓ jump the selection to the top / bottom of the list.
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const end = e.key === "ArrowUp" ? -Infinity : Infinity;
+          if (s.searchQuery.trim()) s.moveSearchFocus(end);
+          else s.moveFocus(end);
+          return;
+        }
         const target = s.selectedItemId ?? (node?.kind === "item" ? node.id : null);
         if (target == null) return;
         const key = e.key.toLowerCase();
@@ -104,6 +116,26 @@ export default function MenuView() {
             s.openSearchHit(s.searchFocus);
             break;
         }
+        return;
+      }
+
+      // App-local create shortcuts (no global registration): start an inline
+      // new item/group draft in the focused column. Only reached here — not while
+      // typing in a field, not in search mode — so a bare letter is safe.
+      const shortcut = shortcutFromEvent(e);
+      if (shortcut === s.newItemHotkey) {
+        e.preventDefault();
+        s.beginDraft("item");
+        return;
+      }
+      if (shortcut === s.newGroupHotkey) {
+        e.preventDefault();
+        s.beginDraft("group");
+        return;
+      }
+      if (shortcut === s.deleteHotkey) {
+        e.preventDefault();
+        s.requestDelete();
         return;
       }
 

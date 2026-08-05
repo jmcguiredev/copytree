@@ -9,10 +9,14 @@ export default function AddRemoveControls() {
   const beginDraft = useMenu((s) => s.beginDraft);
   const renameFocused = useMenu((s) => s.renameFocused);
   const removeFocused = useMenu((s) => s.removeFocused);
+  // Delete-confirm open state lives in the store so the Delete hotkey (handled in
+  // MenuView) opens the same modal as this button.
+  const pendingDelete = useMenu((s) => s.pendingDelete);
+  const requestDelete = useMenu((s) => s.requestDelete);
+  const closeDelete = useMenu((s) => s.closeDelete);
   const target = useMenu(focusedNode);
 
   const [renameOpen, setRenameOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const btn =
     "flex h-7 w-7 items-center justify-center rounded-md disabled:opacity-40";
@@ -44,7 +48,7 @@ export default function AddRemoveControls() {
         style={btnStyle}
         title="Remove"
         disabled={!target}
-        onClick={() => setDeleteOpen(true)}
+        onClick={requestDelete}
       >
         <MinusIcon />
       </button>
@@ -66,8 +70,10 @@ export default function AddRemoveControls() {
         onRename={(name) => void renameFocused(name)}
       />
       <ConfirmDeleteModal
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        open={pendingDelete}
+        onOpenChange={(open) => {
+          if (!open) closeDelete();
+        }}
         node={target ? { name: target.name, kind: target.kind } : null}
         onConfirm={() => void removeFocused()}
       />

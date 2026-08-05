@@ -40,4 +40,11 @@ export const api = {
 
   // Installed font family names for the settings font picker.
   listSystemFonts: () => invoke<string[]>("list_system_fonts"),
+
+  // Import / export (settings.json and the item database, independently). The
+  // frontend chooses paths via a native dialog; these do the file work.
+  exportSettings: (dest: string) => invoke<void>("export_settings", { dest }),
+  importSettings: (src: string) => invoke<void>("import_settings", { src }),
+  exportDatabase: (dest: string) => invoke<void>("export_database", { dest }),
+  importDatabase: (src: string) => invoke<void>("import_database", { src }),
 };

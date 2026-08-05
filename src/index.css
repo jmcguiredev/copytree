@@ -10,6 +10,8 @@
   --acm-fg: #e8e8ea;
   --acm-fg-muted: #9a9ba3;
   --acm-accent: #6d8cff;
+  /* Pre-selection hover tint (click-to-select mode). */
+  --acm-hover: rgba(255, 255, 255, 0.07);
 }
 
 :root[data-theme="light"] {
@@ -19,6 +21,7 @@
   --acm-fg: #1a1a1e;
   --acm-fg-muted: #6b6c74;
   --acm-accent: #3a5bff;
+  --acm-hover: rgba(0, 0, 0, 0.05);
 }
 
 /* The menu window is transparent (PLAN.md §3); keep the document background
@@ -31,6 +34,9 @@ body,
   margin: 0;
   background: transparent;
   color: var(--acm-fg);
+  /* Kill the document-level trackpad rubber-band (the whole overlay bouncing
+     on an overscroll gesture): the document never scrolls — inner panes do. */
+  overflow: hidden;
   /* --acm-font is set by applyAppearance from the Font setting; when unset the
      fallback list (the system stack) applies. */
   font-family: var(
@@ -47,6 +53,34 @@ body,
 
 .acm-solid {
   background: var(--acm-bg);
+}
+
+/* No jelly/elastic overscroll on any scroll container (columns, content pane,
+   settings). `overscroll-behavior: none` also stops scroll-chaining to the
+   document, so a gesture over an inner pane can't bounce the whole window. */
+* {
+  overscroll-behavior: none;
+}
+
+/* The UI chrome (labels, rows, headers, buttons) is not selectable — Cmd+A must
+   not light the app up with a selection. Only editable fields and the content
+   pane (opt in with `.acm-selectable`) allow text selection. */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+input,
+textarea,
+.acm-selectable,
+.acm-selectable * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.acm-selectable {
+  cursor: auto;
 }
 
 /* Column resize splitter: invisible until hovered/dragged. */

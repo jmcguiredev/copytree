@@ -38,9 +38,18 @@ interface MenuState {
   contentScale: number;
   uiScale: number;
   contentVersion: number;
+  /** Bumped on every overlay (re)open so per-row effects (scroll-into-view) can
+   *  re-run against the restored focus even when the focused id is unchanged. */
+  openSeq: number;
   /** Per-column-index widths (px) for the cascade; live during a splitter drag,
    *  seeded from settings on open (applyAppearance). */
   columnWidths: number[];
+  /** Whether hovering or clicking selects a row; seeded from settings. */
+  selectMode: "hover" | "click";
+  /** App-local create/delete shortcuts (shortcutFromEvent strings); from settings. */
+  newItemHotkey: string;
+  newGroupHotkey: string;
+  deleteHotkey: string;
 
   // Search-results mode (PLAN.md §5.2).
   searchQuery: string;
@@ -49,6 +58,8 @@ interface MenuState {
 
   /** Inline "new group / new item" being named in a column (null = none). */
   draft: { col: number; kind: "group" | "item" } | null;
+  /** Whether the delete-confirmation modal is open for the focused selectable. */
+  pendingDelete: boolean;
 
   init: () => Promise<void>;
   reset: () => void;
@@ -73,6 +84,8 @@ interface MenuState {
   cancelDraft: () => void;
   commitDraft: (name: string) => Promise<void>;
   renameFocused: (name: string) => Promise<void>;
+  requestDelete: () => void;
+  closeDelete: () => void;
   removeFocused: () => Promise<void>;
   refreshColumn: (col: number) => Promise<void>;
 }
@@ -112,11 +125,17 @@ export const useMenu = create<MenuState>((set, get) => ({
   contentScale: 1,
   uiScale: 1,
   contentVersion: 0,
+  openSeq: 0,
   columnWidths: [],
+  selectMode: "hover",
+  newItemHotkey: "KeyI",
+  newGroupHotkey: "KeyG",
+  deleteHotkey: "KeyD",
   searchQuery: "",
   searchResults: [],
   searchFocus: 0,
   draft: null,
+  pendingDelete: false,
 
   showItemContent: (id) =>
     set((s) => ({ selectedItemId: id, contentVersion: s.contentVersion + 1 })),
@@ -125,7 +144,7 @@ export const useMenu = create<MenuState>((set, get) => ({
 
   init: async () => {
     const nodes = await loadColumn(null);
-    set({
+    set((s) => ({
       columns: [{ parentId: null, nodes }],
       focus: { col: 0, id: nodes[0]?.id ?? null },
       selectedItemId: null,
@@ -133,7 +152,8 @@ export const useMenu = create<MenuState>((set, get) => ({
       searchQuery: "",
       searchResults: [],
       searchFocus: 0,
-    });
+      openSeq: s.openSeq + 1,
+    }));
   },
 
   reset: () =>
@@ -297,8 +317,18 @@ export const useMenu = create<MenuState>((set, get) => ({
     await get().refreshColumn(focus.col);
   },
 
+  // Delete goes through a confirmation modal (groups cascade, no undo). Open it
+  // only for a real, deletable node; `removeFocused` performs the deletion.
+  requestDelete: () =>
+    set((s) => ({
+      pendingDelete: s.focus.id != null && s.focus.id !== RECENT_ID,
+    })),
+
+  closeDelete: () => set({ pendingDelete: false }),
+
   removeFocused: async () => {
     const { focus } = get();
+    set({ pendingDelete: false });
     if (focus.id == null || focus.id === RECENT_ID) return;
     await api.deleteNode(focus.id);
     await get().refreshColumn(focus.col);

@@ -11,7 +11,7 @@ pub const STORE_PATH: &str = "settings.json";
 /// Default global activation hotkey (PLAN.md §12 leaves the shipping default
 /// open). Key tokens are `KeyboardEvent.code` names, matching what the settings
 /// UI captures.
-pub const DEFAULT_HOTKEY: &str = "CmdOrCtrl+Shift+KeyV";
+pub const DEFAULT_HOTKEY: &str = "CmdOrCtrl+Shift+KeyX";
 
 pub struct Settings {
     /// Undo/redo retention seconds; `0` disables undo/redo.

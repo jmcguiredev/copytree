@@ -8,6 +8,10 @@ A macOS menubar utility: a global hotkey opens a borderless, infinitely-nestable
 cascading context menu at the cursor for storing/retrieving text, still-image, and
 animated-GIF clipboard snippets. No dock icon, dark-mode-first. macOS only.
 
+**Terminology:** a **selectable** is any row in the cascade — a group *or* an item
+(the two `nodes` kinds). Used when a behavior applies to both (keyboard nav, the
+hover/click select mode, scroll-pagination, inline rename).
+
 ## Orientation — read these first
 
 - **`SPEC.md`** — architecture and wiring reference (greppable headers): windows,

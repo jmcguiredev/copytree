@@ -22,6 +22,16 @@ export interface Settings {
   openAtCursor: boolean;
   /** UI font family name; "" = system default stack. */
   fontFamily: string;
+  /** Accent color (selected group/item) as `#rrggbb`; "" = theme default. */
+  accentColor: string;
+  /** Whether a mouse hover or a click selects a group/item in the cascade. */
+  selectMode: "hover" | "click";
+  /** App-local (not global) shortcut to start a new item / group in the focused
+   *  column, active only while the overlay is open and no field is focused.
+   *  Stored as a `shortcutFromEvent` string (modifiers + KeyboardEvent.code). */
+  newItemHotkey: string;
+  newGroupHotkey: string;
+  deleteHotkey: string;
   /** Per-column-index widths (px) for the cascade; missing indices use the
    *  default. Applied by depth position, so widths are consistent across trees. */
   columnWidths: number[];
@@ -35,11 +45,28 @@ export const DEFAULTS: Settings = {
   undoSeconds: 60,
   recentDays: 1,
   maxRecent: 25,
-  hotkey: "CmdOrCtrl+Shift+KeyV",
+  hotkey: "CmdOrCtrl+Shift+KeyX",
   openAtCursor: true,
   fontFamily: "",
+  accentColor: "",
+  selectMode: "hover",
+  newItemHotkey: "KeyI",
+  newGroupHotkey: "KeyG",
+  deleteHotkey: "KeyD",
   columnWidths: [],
 };
+
+/** Canonical shortcut string for a keydown: ordered modifiers + the physical
+ *  `KeyboardEvent.code`. Used both to capture a hotkey and to match one at
+ *  runtime. Mirrors the activation-hotkey token format (e.g. "Shift+KeyI"). */
+export function shortcutFromEvent(e: KeyboardEvent): string {
+  const mods: string[] = [];
+  if (e.metaKey) mods.push("CmdOrCtrl");
+  if (e.ctrlKey) mods.push("Ctrl");
+  if (e.altKey) mods.push("Alt");
+  if (e.shiftKey) mods.push("Shift");
+  return [...mods, e.code].join("+");
+}
 
 /** Scale settings and the lockout guard applied to them. */
 export const SCALE_KEYS = ["scale", "textScale", "contentScale"] as const;
@@ -114,9 +141,22 @@ export function applyAppearance(s: Settings, applyScale = true) {
     document.documentElement.style.removeProperty("--acm-font");
   }
 
+  // Accent (selected group/item) color: override the theme's --acm-accent, or
+  // clear it to fall back to the per-theme default from index.css.
+  const accent = s.accentColor.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(accent)) {
+    document.documentElement.style.setProperty("--acm-accent", accent);
+  } else {
+    document.documentElement.style.removeProperty("--acm-accent");
+  }
+
   useMenu.setState({
     contentScale,
     uiScale: scale,
     columnWidths: Array.isArray(s.columnWidths) ? s.columnWidths : [],
+    selectMode: s.selectMode === "click" ? "click" : "hover",
+    newItemHotkey: s.newItemHotkey,
+    newGroupHotkey: s.newGroupHotkey,
+    deleteHotkey: s.deleteHotkey,
   });
 }
