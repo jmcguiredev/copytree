@@ -43,6 +43,9 @@ interface MenuState {
   columnWidths: number[];
   /** Whether hovering or clicking selects a row; seeded from settings. */
   selectMode: "hover" | "click";
+  /** App-local create shortcuts (shortcutFromEvent strings); seeded from settings. */
+  newItemHotkey: string;
+  newGroupHotkey: string;
 
   // Search-results mode (PLAN.md §5.2).
   searchQuery: string;
@@ -116,6 +119,8 @@ export const useMenu = create<MenuState>((set, get) => ({
   contentVersion: 0,
   columnWidths: [],
   selectMode: "hover",
+  newItemHotkey: "KeyI",
+  newGroupHotkey: "KeyG",
   searchQuery: "",
   searchResults: [],
   searchFocus: 0,

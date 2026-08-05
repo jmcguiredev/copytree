@@ -16,16 +16,58 @@ const MODIFIER_CODES = [
   "MetaRight",
 ];
 
-/** Build a Shortcut string from a keydown, or null for modifier-only presses. */
-function hotkeyFromEvent(e: ReactKeyboardEvent): string | null {
+/** Build a Shortcut string from a keydown, or null for modifier-only presses.
+ *  `allowBare` permits a modifier-less key (for app-local create hotkeys); the
+ *  global activation hotkey still requires at least one modifier. */
+function hotkeyFromEvent(e: ReactKeyboardEvent, allowBare = false): string | null {
   if (MODIFIER_CODES.includes(e.code)) return null;
   const mods: string[] = [];
   if (e.metaKey) mods.push("CmdOrCtrl");
   if (e.ctrlKey) mods.push("Ctrl");
   if (e.altKey) mods.push("Alt");
   if (e.shiftKey) mods.push("Shift");
-  if (mods.length === 0) return null; // require at least one modifier
+  if (mods.length === 0 && !allowBare) return null; // global hotkey needs a modifier
   return [...mods, e.code].join("+");
+}
+
+/** A capture button: click to arm, then the next keydown becomes the shortcut. */
+function HotkeyCapture({
+  value,
+  allowBare,
+  onCapture,
+  onArm,
+}: {
+  value: string;
+  allowBare?: boolean;
+  onCapture: (hotkey: string) => void;
+  onArm?: () => void;
+}) {
+  const [capturing, setCapturing] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setCapturing(true);
+        onArm?.();
+      }}
+      onKeyDown={(e) => {
+        if (!capturing) return;
+        e.preventDefault();
+        const hk = hotkeyFromEvent(e, allowBare);
+        if (!hk) return;
+        onCapture(hk);
+        setCapturing(false);
+      }}
+      onBlur={() => setCapturing(false)}
+      className="min-w-28 rounded-md border px-3 py-1 text-sm"
+      style={{
+        ...inputStyle,
+        borderColor: capturing ? "var(--acm-accent)" : "var(--acm-border)",
+      }}
+    >
+      {capturing ? "Press keys…" : formatHotkey(value)}
+    </button>
+  );
 }
 
 /** Pretty label for a stored shortcut string, e.g. "CmdOrCtrl+Shift+KeyV" -> "⌘ ⇧ V". */
@@ -65,7 +107,6 @@ const inputStyle = {
 
 export default function SettingsView() {
   const [s, setS] = useState<Settings>(DEFAULTS);
-  const [capturing, setCapturing] = useState(false);
   const [hotkeyError, setHotkeyError] = useState<string | null>(null);
   const [fonts, setFonts] = useState<string[]>([]);
 
@@ -197,36 +238,32 @@ export default function SettingsView() {
         </Field>
 
         <Field label="Activation Hotkey">
-          <span className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setCapturing(true);
-                setHotkeyError(null);
-              }}
-              onKeyDown={(e) => {
-                if (!capturing) return;
-                e.preventDefault();
-                const hk = hotkeyFromEvent(e);
-                if (!hk) return;
-                api
-                  .setActivationHotkey(hk)
-                  .then(() => {
-                    setS((prev) => ({ ...prev, hotkey: hk }));
-                    setCapturing(false);
-                  })
-                  .catch((err) => setHotkeyError(String(err)));
-              }}
-              onBlur={() => setCapturing(false)}
-              className="min-w-28 rounded-md border px-3 py-1 text-sm"
-              style={{
-                ...inputStyle,
-                borderColor: capturing ? "var(--acm-accent)" : "var(--acm-border)",
-              }}
-            >
-              {capturing ? "Press keys…" : formatHotkey(s.hotkey)}
-            </button>
-          </span>
+          <HotkeyCapture
+            value={s.hotkey}
+            onArm={() => setHotkeyError(null)}
+            onCapture={(hk) =>
+              api
+                .setActivationHotkey(hk)
+                .then(() => setS((prev) => ({ ...prev, hotkey: hk })))
+                .catch((err) => setHotkeyError(String(err)))
+            }
+          />
+        </Field>
+
+        <Field label="New Item Hotkey">
+          <HotkeyCapture
+            value={s.newItemHotkey}
+            allowBare
+            onCapture={(hk) => update("newItemHotkey", hk)}
+          />
+        </Field>
+
+        <Field label="New Group Hotkey">
+          <HotkeyCapture
+            value={s.newGroupHotkey}
+            allowBare
+            onCapture={(hk) => update("newGroupHotkey", hk)}
+          />
         </Field>
       </div>
 

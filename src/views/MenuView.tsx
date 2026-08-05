@@ -2,7 +2,7 @@ import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
-import { applyAppearance, loadSettings, SETTINGS_CHANGED_EVENT } from "../settings";
+import { applyAppearance, loadSettings, SETTINGS_CHANGED_EVENT, shortcutFromEvent } from "../settings";
 import { focusedNode, useMenu } from "../store";
 import SearchBar from "../components/SearchBar";
 import SearchResults from "../components/SearchResults";
@@ -104,6 +104,21 @@ export default function MenuView() {
             s.openSearchHit(s.searchFocus);
             break;
         }
+        return;
+      }
+
+      // App-local create shortcuts (no global registration): start an inline
+      // new item/group draft in the focused column. Only reached here — not while
+      // typing in a field, not in search mode — so a bare letter is safe.
+      const shortcut = shortcutFromEvent(e);
+      if (shortcut === s.newItemHotkey) {
+        e.preventDefault();
+        s.beginDraft("item");
+        return;
+      }
+      if (shortcut === s.newGroupHotkey) {
+        e.preventDefault();
+        s.beginDraft("group");
         return;
       }
 
