@@ -19,9 +19,11 @@ Owns everything that isn't a child component's concern:
   (handled in the modifier branch) jump the selection to the top / bottom of the current
   list (search results or column). Else **tree**
   nav — first the app-local **create/delete hotkeys** (`store.newItemHotkey`/`newGroupHotkey`
-  → `beginDraft`, `store.deleteHotkey` → `removeFocused` *without a confirm*; matched via
-  `shortcutFromEvent`, bare-key safe since we're not in a field or search), then (↑↓ within
-  column, →/Enter expand, ← collapse, Enter select).
+  → `beginDraft`, `store.deleteHotkey` → `requestDelete` which opens the shared
+  `ConfirmDeleteModal`; matched via `shortcutFromEvent`, bare-key safe since we're not in a
+  field or search), then (↑↓ within column, →/Enter expand, ← collapse, Enter select).
+  While `store.pendingDelete` is set the whole handler bails so the modal owns the keyboard
+  and focus can't move out from under the confirmation.
 - **Sizing**: the window is user-resizable and its size is persisted/restored by the
   backend — there's no content-driven `setSize` here. `ResizeGrips` (right/bottom/corner)
   call `getCurrentWindow().startResizeDragging(dir)` to resize the borderless window; the

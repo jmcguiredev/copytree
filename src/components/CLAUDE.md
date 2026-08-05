@@ -36,8 +36,10 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   picker (`api.setItemLanguage`; `""` = Auto, label shows the detected language). Token
   colors are theme-aware CSS in `index.css`. Name header resolves from a visible column,
   else `selectedItemName` (search).
-- `AddRemoveControls.tsx` — `+ / – / Rename`, owns the modal open state; targets the
-  focused level / node.
+- `AddRemoveControls.tsx` — `+ / – / Rename`; targets the focused level / node. Rename
+  modal state is local, but the **delete-confirm** state lives in the store
+  (`pendingDelete`/`requestDelete`/`closeDelete`) so the Delete hotkey (in MenuView) and the
+  – button open the same `ConfirmDeleteModal`.
 - `modals.tsx` — Radix `AddModal` / `RenameModal` / `ConfirmDeleteModal`.
 - `ColorPicker.tsx` — non-native RGB color selector (Theme Color): a swatch trigger opens a
   portalled popover with custom draggable sliders — R/G/B (each a 0→255 channel gradient)

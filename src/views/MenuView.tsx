@@ -54,6 +54,10 @@ export default function MenuView() {
   // input/textarea (search box, modal fields), except Escape which always closes.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // While the delete-confirm modal is open, let it own the keyboard (Radix
+      // handles Escape/Tab): don't hide the overlay or move focus underneath it —
+      // moving focus would change which node the confirmation deletes.
+      if (useMenu.getState().pendingDelete) return;
       if (e.key === "Escape") {
         e.preventDefault();
         void api.hideMenu();
@@ -131,7 +135,7 @@ export default function MenuView() {
       }
       if (shortcut === s.deleteHotkey) {
         e.preventDefault();
-        void s.removeFocused();
+        s.requestDelete();
         return;
       }
 

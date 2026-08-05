@@ -58,6 +58,8 @@ interface MenuState {
 
   /** Inline "new group / new item" being named in a column (null = none). */
   draft: { col: number; kind: "group" | "item" } | null;
+  /** Whether the delete-confirmation modal is open for the focused selectable. */
+  pendingDelete: boolean;
 
   init: () => Promise<void>;
   reset: () => void;
@@ -82,6 +84,8 @@ interface MenuState {
   cancelDraft: () => void;
   commitDraft: (name: string) => Promise<void>;
   renameFocused: (name: string) => Promise<void>;
+  requestDelete: () => void;
+  closeDelete: () => void;
   removeFocused: () => Promise<void>;
   refreshColumn: (col: number) => Promise<void>;
 }
@@ -131,6 +135,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   searchResults: [],
   searchFocus: 0,
   draft: null,
+  pendingDelete: false,
 
   showItemContent: (id) =>
     set((s) => ({ selectedItemId: id, contentVersion: s.contentVersion + 1 })),
@@ -312,8 +317,18 @@ export const useMenu = create<MenuState>((set, get) => ({
     await get().refreshColumn(focus.col);
   },
 
+  // Delete goes through a confirmation modal (groups cascade, no undo). Open it
+  // only for a real, deletable node; `removeFocused` performs the deletion.
+  requestDelete: () =>
+    set((s) => ({
+      pendingDelete: s.focus.id != null && s.focus.id !== RECENT_ID,
+    })),
+
+  closeDelete: () => set({ pendingDelete: false }),
+
   removeFocused: async () => {
     const { focus } = get();
+    set({ pendingDelete: false });
     if (focus.id == null || focus.id === RECENT_ID) return;
     await api.deleteNode(focus.id);
     await get().refreshColumn(focus.col);

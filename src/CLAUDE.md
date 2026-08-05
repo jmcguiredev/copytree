@@ -29,6 +29,8 @@ Single source of menu UI state:
   `MenuView` shows `SearchResults` instead of columns.
 - `draft {col,kind}` — inline new-group/item being named in a column;
   `beginDraft`/`commitDraft` (empty name cancels; items created empty, filled by paste).
+- `pendingDelete` — delete-confirm modal open flag (`requestDelete`/`closeDelete`), shared by
+  the Delete hotkey and the – button; `removeFocused` clears it and performs the delete.
 - `contentScale`/`uiScale`/`columnWidths`/`selectMode`/`newItemHotkey`/`newGroupHotkey`/
   `deleteHotkey` — seeded by `applyAppearance` (from settings) so behavior/appearance apply live;
   `columnWidths` is also updated live during a splitter drag. `contentVersion` bump forces
