@@ -14,7 +14,7 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   `NodeRow` shows `›` for groups and highlights focused / open rows. In the default
   **hover** select mode, hovering a group expands it (`expandGroup(col,node,false)`) and
   hovering an item focuses it; in **click** mode (`store.selectMode`), hovering only paints
-  a pre-selection tint (`--acm-hover`) and the click *selects*, mirroring keyboard focus:
+  a pre-selection tint (`--copytree-hover`) and the click *selects*, mirroring keyboard focus:
   an item focuses, a group focuses + expands but stays put (turns accent, doesn't dive in).
   In hover mode a click still enters a group.
   Focusing an item — hover, arrow keys, or entering a group onto it — opens its content pane
@@ -44,7 +44,7 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 - `ColorPicker.tsx` — non-native RGB color selector (Theme Color): a swatch trigger opens a
   portalled popover with custom draggable sliders — R/G/B (each a 0→255 channel gradient)
   plus a **black-level (K)** slider that scales all channels toward black (preserving hue) —
-  plus a hex field; emits `#rrggbb`. Falls back to the live `--acm-accent` when its value is "".
+  plus a hex field; emits `#rrggbb`. Falls back to the live `--copytree-accent` when its value is "".
 - `Select.tsx` / `NumberField.tsx` — non-native form controls used by `SettingsView`
   (the native ones felt clunky). `Select` portals its list to `<body>` (fixed position,
   so the settings scroll container can't clip it) with keyboard nav + type-ahead; with
@@ -62,5 +62,5 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   their name to the file's basename. GIF animation is preserved (raw bytes) by the
   backend; other images are transcoded to PNG.
 - Rows are `<button>`s; keyboard nav is handled globally in `MenuView`, not per-row.
-  Styling uses inline `--acm-*` vars (theme-aware), not Tailwind color classes.
+  Styling uses inline `--copytree-*` vars (theme-aware), not Tailwind color classes.
 - Delete confirm copy must keep warning that groups cascade.

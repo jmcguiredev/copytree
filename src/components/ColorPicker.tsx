@@ -28,12 +28,12 @@ function parseHex(hex: string): RGB | null {
   return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
 }
 
-/** The effective starting color: the stored value, else the live --acm-accent. */
+/** The effective starting color: the stored value, else the live --copytree-accent. */
 function effectiveColor(value: string): RGB {
   return (
     parseHex(value) ??
     parseHex(
-      getComputedStyle(document.documentElement).getPropertyValue("--acm-accent"),
+      getComputedStyle(document.documentElement).getPropertyValue("--copytree-accent"),
     ) ?? [109, 140, 255]
   );
 }
@@ -41,7 +41,7 @@ function effectiveColor(value: string): RGB {
 /**
  * A non-native RGB color selector: a swatch trigger that opens a portalled
  * popover with three draggable R/G/B sliders plus a hex field. Emits `#rrggbb`
- * on change. Styled with the `--acm-*` tokens, mirroring Select's positioning.
+ * on change. Styled with the `--copytree-*` tokens, mirroring Select's positioning.
  */
 export default function ColorPicker({ value, onChange, className, ariaLabel }: Props) {
   const [open, setOpen] = useState(false);
@@ -139,13 +139,13 @@ export default function ColorPicker({ value, onChange, className, ariaLabel }: P
         aria-expanded={open}
         onClick={() => (open ? setOpen(false) : (reposition(), setOpen(true)))}
         className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm outline-none"
-        style={{ background: "var(--acm-bg-elevated)", borderColor: open ? "var(--acm-accent)" : "var(--acm-border)", color: "var(--acm-fg)" }}
+        style={{ background: "var(--copytree-bg-elevated)", borderColor: open ? "var(--copytree-accent)" : "var(--copytree-border)", color: "var(--copytree-fg)" }}
       >
         <span
           className="h-4 w-4 shrink-0 rounded"
           style={{ background: swatch, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.25)" }}
         />
-        <span className="tabular-nums" style={{ color: "var(--acm-fg)" }}>
+        <span className="tabular-nums" style={{ color: "var(--copytree-fg)" }}>
           {swatch}
         </span>
       </button>
@@ -160,9 +160,9 @@ export default function ColorPicker({ value, onChange, className, ariaLabel }: P
             style={{
               top: rect.bottom + 4,
               left: Math.min(rect.left, window.innerWidth - 240),
-              background: "var(--acm-bg-elevated)",
-              borderColor: "var(--acm-border)",
-              color: "var(--acm-fg)",
+              background: "var(--copytree-bg-elevated)",
+              borderColor: "var(--copytree-border)",
+              color: "var(--copytree-fg)",
             }}
           >
             <Slider label="R" value={rgb[0]} gradient={channelGradient(0)} onChange={setChannel(0)} readout={String(rgb[0])} />
@@ -190,7 +190,7 @@ export default function ColorPicker({ value, onChange, className, ariaLabel }: P
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
                 className="min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-sm tabular-nums outline-none"
-                style={{ borderColor: "var(--acm-border)", color: "var(--acm-fg)" }}
+                style={{ borderColor: "var(--copytree-border)", color: "var(--copytree-fg)" }}
               />
             </div>
           </div>,
@@ -239,7 +239,7 @@ function Slider({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-3 text-xs" style={{ color: "var(--acm-fg-muted)" }}>
+      <span className="w-3 text-xs" style={{ color: "var(--copytree-fg-muted)" }}>
         {label}
       </span>
       <div
@@ -253,12 +253,12 @@ function Slider({
           className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
           style={{
             left: `${(value / max) * 100}%`,
-            background: "var(--acm-bg-elevated)",
-            borderColor: "var(--acm-fg)",
+            background: "var(--copytree-bg-elevated)",
+            borderColor: "var(--copytree-fg)",
           }}
         />
       </div>
-      <span className="w-7 text-right text-xs tabular-nums" style={{ color: "var(--acm-fg-muted)" }}>
+      <span className="w-7 text-right text-xs tabular-nums" style={{ color: "var(--copytree-fg-muted)" }}>
         {readout}
       </span>
     </div>

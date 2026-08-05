@@ -134,7 +134,7 @@ fn open_settings_window(app: AppHandle) -> tauri::Result<()> {
         Some(win) => win,
         None => {
             let win = WebviewWindowBuilder::new(&app, SETTINGS_LABEL, WebviewUrl::default())
-                .title("ACM Settings")
+                .title("Copy Tree Settings")
                 .inner_size(560.0, 460.0)
                 .resizable(true)
                 .build()?;
@@ -329,7 +329,7 @@ pub fn run() {
             let blobs_dir = data_dir.join("blobs");
             std::fs::create_dir_all(&data_dir)?;
             std::fs::create_dir_all(&blobs_dir)?;
-            let mut conn = db::open(&data_dir.join("acm.db"))?;
+            let mut conn = db::open(&data_dir.join("copytree.db"))?;
             commands::seed_if_empty(&mut conn, &blobs_dir)?;
             app.manage(Db(Mutex::new(conn)));
             app.manage(UndoState::default());
@@ -342,7 +342,7 @@ pub fn run() {
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("ACM — Advanced Clipboard Manager")
+                .tooltip("Copy Tree")
                 .menu(&tray_menu)
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, event| match event.id.as_ref() {
@@ -374,7 +374,7 @@ pub fn run() {
                             // On blur, defer and hide only if focus left the app
                             // entirely — moving to the settings window keeps the
                             // overlay open (settings changes broadcast
-                            // `acm://settings-changed` for live updates).
+                            // `copytree://settings-changed` for live updates).
                             schedule_focus_check(win.app_handle());
                         }
                     }

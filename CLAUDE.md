@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What ACM is
+## What Copy Tree is
 
 A macOS menubar utility: a global hotkey opens a borderless, infinitely-nestable
 cascading context menu at the cursor for storing/retrieving text, still-image, and
@@ -51,7 +51,7 @@ unit-tested without the pasteboard or a window (see `src-tauri/src/CLAUDE.md`).
 ## Scope guardrails (non-goals)
 
 No code signing/notarization, no Windows/Linux QA, no system-pasteboard monitoring/history
-(ACM only touches the pasteboard on explicit Cmd+C/Cmd+V), no multi-level undo. Keep code
+(Copy Tree only touches the pasteboard on explicit Cmd+C/Cmd+V), no multi-level undo. Keep code
 portable where it's free, but don't invest in cross-platform work.
 
 ## Recycling context (keep SPEC.md & the nested CLAUDE.md files current)

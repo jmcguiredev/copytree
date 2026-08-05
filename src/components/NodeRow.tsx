@@ -110,20 +110,20 @@ export default function NodeRow({ node, col }: Props) {
       className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm outline-none"
       style={{
         background: isFocused
-          ? "var(--acm-accent)"
+          ? "var(--copytree-accent)"
           : isOpen
-            ? "var(--acm-bg-elevated)"
+            ? "var(--copytree-bg-elevated)"
             : hovered
-              ? "var(--acm-hover)"
+              ? "var(--copytree-hover)"
               : "transparent",
-        color: isFocused ? "#fff" : "var(--acm-fg)",
+        color: isFocused ? "#fff" : "var(--copytree-fg)",
       }}
     >
       <span className="min-w-0 flex-1 truncate">{node.name}</span>
       {isGroup && (
         <span
           className="shrink-0 text-xs"
-          style={{ color: isFocused ? "#fff" : "var(--acm-fg-muted)" }}
+          style={{ color: isFocused ? "#fff" : "var(--copytree-fg-muted)" }}
         >
           ›
         </span>
@@ -179,9 +179,9 @@ function RenameInput({
       onBlur={() => finish(true)}
       className="mx-0.5 rounded-md px-2 py-1.5 text-sm outline-none"
       style={{
-        background: "var(--acm-bg-elevated)",
-        color: "var(--acm-fg)",
-        border: "1px solid var(--acm-accent)",
+        background: "var(--copytree-bg-elevated)",
+        color: "var(--copytree-fg)",
+        border: "1px solid var(--copytree-accent)",
       }}
     />
   );

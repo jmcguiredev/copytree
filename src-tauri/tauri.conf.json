@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ACM",
+  "productName": "Copy Tree",
   "version": "0.1.0",
-  "identifier": "com.z3ro.acm",
+  "identifier": "com.z3ro.copytree",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "menu",
-        "title": "ACM",
+        "title": "Copy Tree",
         "width": 640,
         "height": 420,
         "minWidth": 320,

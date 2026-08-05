@@ -11,9 +11,9 @@ Working context for the Tauri/Rust side. See `SPEC.md` for the full map.
   state and maps errors to `String`.
 - `db.rs`, `models.rs`, `blobs.rs`, `clipboard.rs`, `settings.rs` — see SPEC.
 - `portation.rs` — import/export commands. Settings ↔ a JSON file; database ↔ a `zip`
-  (`acm.db` + `blobs/`, via the `zip` crate). Export holds the `Db` lock so the file
+  (`copytree.db` + `blobs/`, via the `zip` crate). Export holds the `Db` lock so the file
   snapshot is between transactions. Import holds the lock across extraction, then swaps
-  the connection in place (`*guard = db::open(...)`) — no restart; only `acm.db`/`blobs/*`
+  the connection in place (`*guard = db::open(...)`) — no restart; only `copytree.db`/`blobs/*`
   entries are extracted (traversal entries skipped).
 - `fonts.rs` — macOS-only; `NSFontManager` family enumeration. It's `MainThreadOnly`,
   so `list_system_fonts` (in `lib.rs`) calls it via `app.run_on_main_thread` and ships

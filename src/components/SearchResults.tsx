@@ -9,7 +9,7 @@ export default function SearchResults() {
 
   if (results.length === 0) {
     return (
-      <div className="w-[320px] shrink-0 p-3 text-xs" style={{ color: "var(--acm-fg-muted)" }}>
+      <div className="w-[320px] shrink-0 p-3 text-xs" style={{ color: "var(--copytree-fg-muted)" }}>
         No matches
       </div>
     );
@@ -27,15 +27,15 @@ export default function SearchResults() {
             onMouseEnter={() => useMenu.setState({ searchFocus: i })}
             className="flex flex-col rounded-md px-2.5 py-1.5 text-left"
             style={{
-              background: active ? "var(--acm-accent)" : "transparent",
-              color: active ? "#fff" : "var(--acm-fg)",
+              background: active ? "var(--copytree-accent)" : "transparent",
+              color: active ? "#fff" : "var(--copytree-fg)",
             }}
           >
             <span className="truncate text-sm">{hit.name}</span>
             {hit.path && (
               <span
                 className="truncate text-xs"
-                style={{ color: active ? "rgba(255,255,255,0.8)" : "var(--acm-fg-muted)" }}
+                style={{ color: active ? "rgba(255,255,255,0.8)" : "var(--copytree-fg-muted)" }}
               >
                 {hit.path}
               </span>

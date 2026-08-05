@@ -7,15 +7,15 @@ const contentStyle =
   "fixed left-1/2 top-1/2 w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-xl border p-4 shadow-xl";
 
 function panelStyle() {
-  return { background: "var(--acm-bg)", borderColor: "var(--acm-border)" };
+  return { background: "var(--copytree-bg)", borderColor: "var(--copytree-border)" };
 }
 
 const inputClass =
   "w-full rounded-md border px-2.5 py-1.5 text-sm outline-none";
 const inputStyle = {
-  background: "var(--acm-bg-elevated)",
-  borderColor: "var(--acm-border)",
-  color: "var(--acm-fg)",
+  background: "var(--copytree-bg-elevated)",
+  borderColor: "var(--copytree-border)",
+  color: "var(--copytree-fg)",
 };
 
 function Buttons({ onCancel, confirmLabel }: { onCancel: () => void; confirmLabel: string }) {
@@ -25,14 +25,14 @@ function Buttons({ onCancel, confirmLabel }: { onCancel: () => void; confirmLabe
         type="button"
         onClick={onCancel}
         className="rounded-md px-3 py-1.5 text-sm"
-        style={{ color: "var(--acm-fg-muted)" }}
+        style={{ color: "var(--copytree-fg-muted)" }}
       >
         Cancel
       </button>
       <button
         type="submit"
         className="rounded-md px-3 py-1.5 text-sm font-medium text-white"
-        style={{ background: "var(--acm-accent)" }}
+        style={{ background: "var(--copytree-accent)" }}
       >
         {confirmLabel}
       </button>
@@ -94,7 +94,7 @@ export function AddModal({
       <Dialog.Portal>
         <Dialog.Overlay className={overlayStyle} />
         <Dialog.Content className={contentStyle} style={panelStyle()}>
-          <Dialog.Title className="text-sm font-semibold" style={{ color: "var(--acm-fg)" }}>
+          <Dialog.Title className="text-sm font-semibold" style={{ color: "var(--copytree-fg)" }}>
             New {kind === "group" ? "group" : "item"}
           </Dialog.Title>
           <Dialog.Description className="sr-only">
@@ -124,8 +124,8 @@ export function AddModal({
                   onClick={() => setKind(k)}
                   className="flex-1 rounded-md px-2 py-1 text-xs"
                   style={{
-                    background: kind === k ? "var(--acm-accent)" : "var(--acm-bg-elevated)",
-                    color: kind === k ? "#fff" : "var(--acm-fg-muted)",
+                    background: kind === k ? "var(--copytree-accent)" : "var(--copytree-bg-elevated)",
+                    color: kind === k ? "#fff" : "var(--copytree-fg-muted)",
                   }}
                 >
                   {label}
@@ -160,7 +160,7 @@ export function AddModal({
                 >
                   Choose file…
                 </button>
-                <span className="truncate text-xs" style={{ color: "var(--acm-fg-muted)" }}>
+                <span className="truncate text-xs" style={{ color: "var(--copytree-fg-muted)" }}>
                   {filePath ? baseName(filePath) : "No file selected"}
                 </span>
               </div>
@@ -195,7 +195,7 @@ export function RenameModal({
       <Dialog.Portal>
         <Dialog.Overlay className={overlayStyle} />
         <Dialog.Content className={contentStyle} style={panelStyle()}>
-          <Dialog.Title className="text-sm font-semibold" style={{ color: "var(--acm-fg)" }}>
+          <Dialog.Title className="text-sm font-semibold" style={{ color: "var(--copytree-fg)" }}>
             Rename
           </Dialog.Title>
           <Dialog.Description className="sr-only">Rename this node.</Dialog.Description>
@@ -239,10 +239,10 @@ export function ConfirmDeleteModal({
       <Dialog.Portal>
         <Dialog.Overlay className={overlayStyle} />
         <Dialog.Content className={contentStyle} style={panelStyle()}>
-          <Dialog.Title className="text-sm font-semibold" style={{ color: "var(--acm-fg)" }}>
+          <Dialog.Title className="text-sm font-semibold" style={{ color: "var(--copytree-fg)" }}>
             Delete “{node?.name}”?
           </Dialog.Title>
-          <Dialog.Description className="mt-2 text-xs" style={{ color: "var(--acm-fg-muted)" }}>
+          <Dialog.Description className="mt-2 text-xs" style={{ color: "var(--copytree-fg-muted)" }}>
             {node?.kind === "group"
               ? "This group and everything inside it will be permanently deleted."
               : "This item will be permanently deleted."}
@@ -252,7 +252,7 @@ export function ConfirmDeleteModal({
               type="button"
               onClick={() => onOpenChange(false)}
               className="rounded-md px-3 py-1.5 text-sm"
-              style={{ color: "var(--acm-fg-muted)" }}
+              style={{ color: "var(--copytree-fg-muted)" }}
             >
               Cancel
             </button>

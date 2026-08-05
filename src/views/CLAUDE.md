@@ -9,7 +9,7 @@ Owns everything that isn't a child component's concern:
   appearance (`loadSettings`→`applyAppearance`), focus the search box, and play the
   open animation (`panelRef.animate`). This is how re-showing the hidden window resets
   state and re-applies appearance on refocus.
-- **Live settings**: also listens for `SETTINGS_CHANGED_EVENT` (`acm://settings-changed`,
+- **Live settings**: also listens for `SETTINGS_CHANGED_EVENT` (`copytree://settings-changed`,
   emitted by `setSetting`) and re-applies appearance without a refocus — so while the
   settings window is open and the overlay stays visible (Rust keeps it open when settings
   is up), scale/font/theme changes update the menu immediately.

@@ -11,7 +11,7 @@ interface Props {
 
 /**
  * A non-native numeric field: a text box plus up/down stepper buttons, styled
- * with the `--acm-*` theme tokens. Edits commit on blur / Enter (or immediately
+ * with the `--copytree-*` theme tokens. Edits commit on blur / Enter (or immediately
  * on a stepper click); an empty or invalid entry reverts to the last valid value
  * rather than collapsing — so it can never emit an out-of-range/NaN value.
  */
@@ -49,7 +49,7 @@ export default function NumberField({ value, min, max, step, onChange, className
   return (
     <div
       className={`inline-flex items-stretch overflow-hidden rounded-md border ${className ?? ""}`}
-      style={{ borderColor: "var(--acm-border)", background: "var(--acm-bg-elevated)" }}
+      style={{ borderColor: "var(--copytree-border)", background: "var(--copytree-bg-elevated)" }}
     >
       <input
         inputMode="decimal"
@@ -73,9 +73,9 @@ export default function NumberField({ value, min, max, step, onChange, className
           }
         }}
         className="w-12 bg-transparent px-2 py-1 text-sm tabular-nums outline-none"
-        style={{ color: "var(--acm-fg)" }}
+        style={{ color: "var(--copytree-fg)" }}
       />
-      <div className="flex flex-col border-l" style={{ borderColor: "var(--acm-border)" }}>
+      <div className="flex flex-col border-l" style={{ borderColor: "var(--copytree-border)" }}>
         <StepButton dir="up" onClick={() => nudge(1)} />
         <StepButton dir="down" onClick={() => nudge(-1)} border />
       </div>
@@ -101,7 +101,7 @@ function StepButton({
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={`flex w-7 flex-1 items-center justify-center ${border ? "border-t" : ""}`}
-      style={{ color: "var(--acm-fg-muted)", borderColor: "var(--acm-border)" }}
+      style={{ color: "var(--copytree-fg-muted)", borderColor: "var(--copytree-border)" }}
     >
       <svg
         width="12"

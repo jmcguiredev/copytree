@@ -27,7 +27,7 @@ interface Props {
 }
 
 /**
- * A non-native dropdown styled with the `--acm-*` tokens. The list is portalled
+ * A non-native dropdown styled with the `--copytree-*` tokens. The list is portalled
  * to <body> with fixed positioning so it's never clipped by the settings
  * window's scroll container, and sizes to its content (up to a cap) so long
  * labels stay readable. With `searchable` the trigger is a text input that
@@ -170,9 +170,9 @@ export default function Select({
   };
 
   const triggerStyle: CSSProperties = {
-    background: "var(--acm-bg-elevated)",
-    borderColor: open ? "var(--acm-accent)" : "var(--acm-border)",
-    color: "var(--acm-fg)",
+    background: "var(--copytree-bg-elevated)",
+    borderColor: open ? "var(--copytree-accent)" : "var(--copytree-border)",
+    color: "var(--copytree-fg)",
   };
 
   return (
@@ -204,7 +204,7 @@ export default function Select({
             }}
             onKeyDown={onKeyDown}
             className="min-w-0 flex-1 bg-transparent outline-none"
-            style={{ ...(selected ? optionStyle?.(selected) : undefined), color: "var(--acm-fg)" }}
+            style={{ ...(selected ? optionStyle?.(selected) : undefined), color: "var(--copytree-fg)" }}
           />
           <button
             type="button"
@@ -217,7 +217,7 @@ export default function Select({
               else openMenu();
             }}
             className="flex shrink-0 items-center justify-center"
-            style={{ color: "var(--acm-fg-muted)" }}
+            style={{ color: "var(--copytree-fg-muted)" }}
           >
             <ChevronDown />
           </button>
@@ -234,7 +234,7 @@ export default function Select({
           style={triggerStyle}
         >
           <span className="truncate">{selected?.label ?? ""}</span>
-          <span className="flex shrink-0 items-center" style={{ color: "var(--acm-fg-muted)" }}>
+          <span className="flex shrink-0 items-center" style={{ color: "var(--copytree-fg-muted)" }}>
             <ChevronDown />
           </span>
         </button>
@@ -255,13 +255,13 @@ export default function Select({
               minWidth: rect.width,
               maxWidth: "min(90vw, 360px)",
               maxHeight: 260,
-              background: "var(--acm-bg-elevated)",
-              borderColor: "var(--acm-border)",
-              color: "var(--acm-fg)",
+              background: "var(--copytree-bg-elevated)",
+              borderColor: "var(--copytree-border)",
+              color: "var(--copytree-fg)",
             }}
           >
             {filtered.length === 0 ? (
-              <div className="px-2.5 py-1.5 italic" style={{ color: "var(--acm-fg-muted)" }}>
+              <div className="px-2.5 py-1.5 italic" style={{ color: "var(--copytree-fg-muted)" }}>
                 no matches
               </div>
             ) : (
@@ -277,9 +277,9 @@ export default function Select({
                   className="cursor-pointer truncate px-2.5 py-1.5"
                   style={{
                     ...optionStyle?.(o),
-                    background: i === active ? "var(--acm-accent)" : "transparent",
+                    background: i === active ? "var(--copytree-accent)" : "transparent",
                     color:
-                      i === active ? "#fff" : o.value === value ? "var(--acm-accent)" : "var(--acm-fg)",
+                      i === active ? "#fff" : o.value === value ? "var(--copytree-accent)" : "var(--copytree-fg)",
                   }}
                 >
                   {o.label}

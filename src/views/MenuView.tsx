@@ -178,17 +178,17 @@ export default function MenuView() {
     <div
       ref={panelRef}
       className="relative flex h-screen w-screen flex-col overflow-hidden rounded-xl border p-2"
-      style={{ background: "var(--acm-bg)", borderColor: "var(--acm-border)" }}
+      style={{ background: "var(--copytree-bg)", borderColor: "var(--copytree-border)" }}
     >
       <div className="flex items-center gap-2">
         <div
           data-tauri-drag-region
           onDoubleClick={(e) => e.preventDefault()}
           className="flex h-8 w-6 shrink-0 cursor-grab items-center justify-center rounded-md"
-          style={{ background: "var(--acm-bg-elevated)" }}
+          style={{ background: "var(--copytree-bg-elevated)" }}
           title="Drag to move"
         >
-          <span data-tauri-drag-region className="text-xs" style={{ color: "var(--acm-fg-muted)" }}>
+          <span data-tauri-drag-region className="text-xs" style={{ color: "var(--copytree-fg-muted)" }}>
             ⠿
           </span>
         </div>
@@ -204,7 +204,7 @@ export default function MenuView() {
 
       <div
         className="mt-2 flex min-h-0 flex-1 overflow-x-auto overflow-y-hidden rounded-md border"
-        style={{ borderColor: "var(--acm-border)" }}
+        style={{ borderColor: "var(--copytree-border)" }}
       >
         {searchActive ? <SearchResults /> : <MenuColumns />}
         <ContentPane />

@@ -1,10 +1,10 @@
-# SPEC.md — ACM architecture & wiring
+# SPEC.md — Copy Tree architecture & wiring
 
-Architectural reference for ACM (Advanced Clipboard Manager). Headers are kept
+Architectural reference for Copy Tree. Headers are kept
 short and greppable. For per-area working notes see the nested `CLAUDE.md` in each
 source folder. Keep this file current — see "Recycling context" in the root `CLAUDE.md`.
 
-ACM is a macOS menubar utility: a global hotkey opens a borderless, infinitely
+Copy Tree is a macOS menubar utility: a global hotkey opens a borderless, infinitely
 nestable cascading menu at the cursor for storing/retrieving text, image, and
 animated-GIF clipboard snippets.
 
@@ -53,7 +53,7 @@ then show + focus. Frontend re-inits the tree and re-applies appearance on
 `schedule_focus_check`: after ~120ms it hides the overlay (saving geometry first)
 **unless** one of our own windows (overlay or settings) still holds focus — so moving
 between overlay ↔ settings keeps it open, but clicking another app closes it. While both
-are open, settings changes broadcast `acm://settings-changed`, which the (possibly
+are open, settings changes broadcast `copytree://settings-changed`, which the (possibly
 unfocused) menu listens for to re-read + re-apply appearance live. `save_menu_geometry`
 persists `menuPosition` (pinned mode) and `menuSize` (always restored on open).
 
@@ -88,10 +88,10 @@ Adjacency-list tree. Schema + triggers live in `db.rs` (`SCHEMA_V1`), applied vi
 
 ## Filesystem layout
 
-Under Tauri `app_data_dir()` = `~/Library/Application Support/com.z3ro.acm/`:
+Under Tauri `app_data_dir()` = `~/Library/Application Support/com.z3ro.copytree/`:
 
 ```
-acm.db          # SQLite (tree, item metadata, FTS index)
+copytree.db          # SQLite (tree, item metadata, FTS index)
 blobs/          # image/gif payloads, <sha256>.<ext>, content-deduped
 settings.json   # tauri-plugin-store
 ```
@@ -112,7 +112,7 @@ dedup, so overwrite/undo **never deletes** blob files (no GC yet).
 - `clipboard.rs` — **macOS only** (`objc2-app-kit`): `NSPasteboard` read/write.
 - `settings.rs` — read `settings.json` for undo/recent/hotkey (Rust-side needs).
 - `portation.rs` — import/export commands: settings as JSON, database as a `zip`
-  bundling `acm.db` + `blobs/` (the `zip` crate). DB import extracts, replaces the
+  bundling `copytree.db` + `blobs/` (the `zip` crate). DB import extracts, replaces the
   files, and swaps the managed connection in place (no restart).
 
 ## Tauri commands (wiring)
@@ -189,7 +189,7 @@ full hljs build is bundled for maximum language coverage. Image/gif render via t
   to match a hotkey at runtime.
 - Appearance applies to the menu on (re)open (re-read, not a live event): `data-theme`,
   root font-size (Text Scale), `body{zoom}` (overall Scale — window `setSize` × `uiScale`
-  to match), `contentScale`, `--acm-font` (Font), and `--acm-accent` (Theme Color; cleared
+  to match), `contentScale`, `--copytree-font` (Font), and `--copytree-accent` (Theme Color; cleared
   → per-theme default). It also seeds behavior state into the store: `selectMode` and the
   two create hotkeys, so those apply live.
 - **Scale lockout guard**: `scale`/`textScale`/`contentScale` are clamped to
@@ -241,8 +241,8 @@ mutating core window/webview JS API needs its permission added here.
 - Dev: `pnpm tauri dev`. Frontend build: `pnpm build` (tsc + vite).
 - Tests: `cd src-tauri && cargo test` (data layer, FTS, blob dedup, undo/redo,
   search/recent). Native clipboard + UI interaction are not headless-testable.
-- Bundle: `pnpm tauri build` → `src-tauri/target/release/bundle/{macos/ACM.app,
-  dmg/ACM_0.1.0_aarch64.dmg}`. Unsigned; `category: Utility`.
+- Bundle: `pnpm tauri build` → `src-tauri/target/release/bundle/{macos/Copy Tree.app,
+  dmg/Copy Tree_0.1.0_aarch64.dmg}`. Unsigned; `category: Utility`.
 - Toolchain: Rust ≥ 1.85 (edition2024 transitive dep).
 
 ## Assumptions & deviations

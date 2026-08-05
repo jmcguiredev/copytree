@@ -4,7 +4,7 @@ import { useMenu } from "./store";
 
 /** Broadcast when a setting changes, so the (possibly unfocused) menu window can
  *  re-read + re-apply appearance live while the settings window is open. */
-export const SETTINGS_CHANGED_EVENT = "acm://settings-changed";
+export const SETTINGS_CHANGED_EVENT = "copytree://settings-changed";
 
 // Settings persisted in settings.json (PLAN.md §7). Shared with the Rust side
 // through tauri-plugin-store. Appearance keys are applied here; undo/recent/
@@ -129,25 +129,25 @@ export function applyAppearance(s: Settings, applyScale = true) {
   // by the same factor (see MenuView).
   document.body.style.setProperty("zoom", String(scale));
 
-  // Font: drive the `--acm-font` custom property that index.css falls back from;
+  // Font: drive the `--copytree-font` custom property that index.css falls back from;
   // clearing it restores the default system stack.
   const font = s.fontFamily.trim();
   if (font) {
     document.documentElement.style.setProperty(
-      "--acm-font",
+      "--copytree-font",
       `"${font}", ui-sans-serif, system-ui, sans-serif`,
     );
   } else {
-    document.documentElement.style.removeProperty("--acm-font");
+    document.documentElement.style.removeProperty("--copytree-font");
   }
 
-  // Accent (selected group/item) color: override the theme's --acm-accent, or
+  // Accent (selected group/item) color: override the theme's --copytree-accent, or
   // clear it to fall back to the per-theme default from index.css.
   const accent = s.accentColor.trim();
   if (/^#[0-9a-fA-F]{6}$/.test(accent)) {
-    document.documentElement.style.setProperty("--acm-accent", accent);
+    document.documentElement.style.setProperty("--copytree-accent", accent);
   } else {
-    document.documentElement.style.removeProperty("--acm-accent");
+    document.documentElement.style.removeProperty("--copytree-accent");
   }
 
   useMenu.setState({

@@ -858,7 +858,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("acm-test-blobs-{nanos}"));
+        let dir = std::env::temp_dir().join(format!("copytree-test-blobs-{nanos}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
