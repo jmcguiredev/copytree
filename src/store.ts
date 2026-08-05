@@ -38,6 +38,9 @@ interface MenuState {
   contentScale: number;
   uiScale: number;
   contentVersion: number;
+  /** Bumped on every overlay (re)open so per-row effects (scroll-into-view) can
+   *  re-run against the restored focus even when the focused id is unchanged. */
+  openSeq: number;
   /** Per-column-index widths (px) for the cascade; live during a splitter drag,
    *  seeded from settings on open (applyAppearance). */
   columnWidths: number[];
@@ -117,6 +120,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   contentScale: 1,
   uiScale: 1,
   contentVersion: 0,
+  openSeq: 0,
   columnWidths: [],
   selectMode: "hover",
   newItemHotkey: "KeyI",
@@ -133,7 +137,7 @@ export const useMenu = create<MenuState>((set, get) => ({
 
   init: async () => {
     const nodes = await loadColumn(null);
-    set({
+    set((s) => ({
       columns: [{ parentId: null, nodes }],
       focus: { col: 0, id: nodes[0]?.id ?? null },
       selectedItemId: null,
@@ -141,7 +145,8 @@ export const useMenu = create<MenuState>((set, get) => ({
       searchQuery: "",
       searchResults: [],
       searchFocus: 0,
-    });
+      openSeq: s.openSeq + 1,
+    }));
   },
 
   reset: () =>

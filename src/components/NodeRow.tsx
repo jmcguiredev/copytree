@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Node } from "../types";
 import { api } from "../api";
 import { RECENT_ID, useMenu } from "../store";
@@ -18,6 +18,7 @@ export default function NodeRow({ node, col }: Props) {
   const focusRow = useMenu((s) => s.focusRow);
   const selectMode = useMenu((s) => s.selectMode);
   const refreshColumn = useMenu((s) => s.refreshColumn);
+  const openSeq = useMenu((s) => s.openSeq);
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -28,21 +29,27 @@ export default function NodeRow({ node, col }: Props) {
   const isOpen = columns[col + 1]?.parentId === node.id;
   const canRename = node.id !== RECENT_ID;
 
-  // Scroll-based pagination (PLAN §5.3): when arrow-key nav focuses a row that's
-  // outside its column's viewport, teleport-scroll so that row becomes the top of
-  // the visible list (rather than nudging it just barely into view). The column
-  // div is the row's offsetParent (position:relative) and the scroll container.
-  useEffect(() => {
+  // Scroll-based pagination (PLAN §5.3): when nav focuses a row outside its
+  // column's viewport, page-scroll it into view (rather than nudging it just
+  // barely in) — direction inferred from geometry: a row below the fold jumps to
+  // the **top** of the list, a row above the fold jumps to the **bottom**. The
+  // column div is the row's offsetParent (position:relative) and the scroller.
+  // `openSeq` re-runs this on every overlay (re)open so a stale scroll position
+  // (persisted DOM while the window was hidden) is corrected against the restored
+  // focus — layout effect so it lands before paint (no flash).
+  useLayoutEffect(() => {
     if (!isFocused) return;
     const el = rowRef.current;
     const scroller = el?.offsetParent as HTMLElement | null;
-    if (!el || !scroller) return;
+    if (!el || !scroller || scroller.clientHeight === 0) return;
     const top = el.offsetTop;
     const bottom = top + el.offsetHeight;
-    if (top < scroller.scrollTop || bottom > scroller.scrollTop + scroller.clientHeight) {
-      scroller.scrollTop = top;
+    if (bottom > scroller.scrollTop + scroller.clientHeight) {
+      scroller.scrollTop = top; // below the fold → align to top
+    } else if (top < scroller.scrollTop) {
+      scroller.scrollTop = bottom - scroller.clientHeight; // above the fold → align to bottom
     }
-  }, [isFocused]);
+  }, [isFocused, openSeq]);
 
   // Double-click the name to rename inline (PLAN §5.4). The virtual Recent group
   // isn't renamable.
@@ -69,7 +76,19 @@ export default function NodeRow({ node, col }: Props) {
       type="button"
       role="option"
       aria-selected={isFocused}
-      onClick={() => void activate(col, node)}
+      onClick={() => {
+        // Click-to-select mirrors keyboard focus: the clicked row becomes the
+        // selection (accent). An item focuses (opening its content); a group
+        // focuses + expands but stays put (like hover-select / arrow keys), so it
+        // turns the theme color rather than immediately diving into its children.
+        // Hover-select keeps the classic click-a-group-enters behavior.
+        if (selectMode === "click") {
+          if (isGroup) void expandGroup(col, node, false);
+          else focusRow(col, node.id);
+        } else {
+          void activate(col, node);
+        }
+      }}
       onDoubleClick={(e) => {
         if (!canRename) return;
         e.preventDefault();
