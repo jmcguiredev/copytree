@@ -32,7 +32,9 @@ Single source of menu UI state:
 - `contentScale`/`uiScale`/`columnWidths`/`selectMode`/`newItemHotkey`/`newGroupHotkey` —
   seeded by `applyAppearance` (from settings) so behavior/appearance apply live;
   `columnWidths` is also updated live during a splitter drag. `contentVersion` bump forces
-  the content pane to refetch (after paste/undo/redo).
+  the content pane to refetch (after paste/undo/redo). `openSeq` bumps in `init` on every
+  overlay (re)open so per-row scroll-into-view effects re-run even when the focused id is
+  unchanged.
 - Gotcha: mutating actions map `RECENT_ID` parent → root (`null`); you can't add into
   the virtual group. Deeper columns are truncated on focus change/selection.
 

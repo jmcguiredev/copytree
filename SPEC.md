@@ -193,8 +193,8 @@ full hljs build is bundled for maximum language coverage. Image/gif render via t
   the *menu*, not the control panel.
 - **Settings controls are non-native**: `components/Select.tsx` (portalled dropdown, keyboard
   nav + type-ahead), `components/NumberField.tsx` (stepper, commits on blur/Enter, reverts
-  empty input), and `components/ColorPicker.tsx` (portalled popover, draggable R/G/B sliders
-  + hex field) replace the browser `<select>`/`<input type=number|color>`.
+  empty input), and `components/ColorPicker.tsx` (portalled popover, draggable R/G/B +
+  black-level (K) sliders + hex field) replace the browser `<select>`/`<input type=number|color>`.
 
 ## Global hotkey
 

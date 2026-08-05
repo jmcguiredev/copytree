@@ -15,7 +15,9 @@ Owns everything that isn't a child component's concern:
   is up), scale/font/theme changes update the menu immediately.
 - **Global keydown** handler (order matters): Escape → `hide_menu`; skip when typing in
   an input/textarea; **clipboard** Cmd/Ctrl+C/V/Z/Shift+Z on the selected/focused item;
-  then **search-mode** nav (↑↓/Enter over results) if a query is active; else **tree**
+  then **search-mode** nav (↑↓/Enter over results) if a query is active. **Cmd/Ctrl+↑**
+  (handled in the modifier branch) jumps the selection to the top of the current list
+  (search results or column). Else **tree**
   nav — first the app-local **create hotkeys** (`store.newItemHotkey`/`newGroupHotkey`
   matched via `shortcutFromEvent` → `beginDraft`; bare-key safe since we're not in a field
   or search), then (↑↓ within column, →/Enter expand, ← collapse, Enter select).
