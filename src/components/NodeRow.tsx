@@ -21,10 +21,28 @@ export default function NodeRow({ node, col }: Props) {
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
 
+  const rowRef = useRef<HTMLButtonElement>(null);
+
   const isGroup = node.kind === "group";
   const isFocused = focus.col === col && focus.id === node.id;
   const isOpen = columns[col + 1]?.parentId === node.id;
   const canRename = node.id !== RECENT_ID;
+
+  // Scroll-based pagination (PLAN §5.3): when arrow-key nav focuses a row that's
+  // outside its column's viewport, teleport-scroll so that row becomes the top of
+  // the visible list (rather than nudging it just barely into view). The column
+  // div is the row's offsetParent (position:relative) and the scroll container.
+  useEffect(() => {
+    if (!isFocused) return;
+    const el = rowRef.current;
+    const scroller = el?.offsetParent as HTMLElement | null;
+    if (!el || !scroller) return;
+    const top = el.offsetTop;
+    const bottom = top + el.offsetHeight;
+    if (top < scroller.scrollTop || bottom > scroller.scrollTop + scroller.clientHeight) {
+      scroller.scrollTop = top;
+    }
+  }, [isFocused]);
 
   // Double-click the name to rename inline (PLAN §5.4). The virtual Recent group
   // isn't renamable.
@@ -47,6 +65,7 @@ export default function NodeRow({ node, col }: Props) {
 
   return (
     <button
+      ref={rowRef}
       type="button"
       role="option"
       aria-selected={isFocused}
