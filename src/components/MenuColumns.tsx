@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { useMenu } from "../store";
+import { RECENT_ID, useMenu } from "../store";
 import { setSetting } from "../settings";
 import NodeRow from "./NodeRow";
 
@@ -53,10 +53,24 @@ export default function MenuColumns() {
           <div
             key={col}
             className="relative flex shrink-0 flex-col gap-0.5 overflow-y-auto border-r py-1 pr-1"
-            style={{ width: columnWidth(columnWidths, col), borderColor: "var(--acm-border)" }}
+            style={{ width: columnWidth(columnWidths, col), borderColor: "var(--copytree-border)" }}
+            onDragOver={(e) => {
+              // Empty area below the rows: allow an append-to-end drop. (Rows
+              // stopPropagation on their own drop, so this only fires in the gap.)
+              const d = useMenu.getState().drag;
+              if (!d || column.parentId === RECENT_ID) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(e) => {
+              const d = useMenu.getState().drag;
+              if (!d || column.parentId === RECENT_ID) return;
+              e.preventDefault();
+              void useMenu.getState().moveNode(d.id, column.parentId, null, null, [d.col, col]);
+            }}
           >
             {column.nodes.length === 0 && !drafting ? (
-              <div className="px-2.5 py-1.5 text-xs italic" style={{ color: "var(--acm-fg-muted)" }}>
+              <div className="px-2.5 py-1.5 text-xs italic" style={{ color: "var(--copytree-fg-muted)" }}>
                 empty
               </div>
             ) : (
@@ -71,7 +85,7 @@ export default function MenuColumns() {
             )}
             <div
               onMouseDown={(e) => startResize(col, e)}
-              className="acm-col-splitter absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize"
+              className="copytree-col-splitter absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize"
               title="Drag to resize column"
             />
           </div>
@@ -129,9 +143,9 @@ function DraftRow({
       onBlur={() => finish(true)}
       className="mx-0.5 rounded-md px-2 py-1.5 text-sm outline-none"
       style={{
-        background: "var(--acm-bg-elevated)",
-        color: "var(--acm-fg)",
-        border: "1px solid var(--acm-accent)",
+        background: "var(--copytree-bg-elevated)",
+        color: "var(--copytree-fg)",
+        border: "1px solid var(--copytree-accent)",
       }}
     />
   );

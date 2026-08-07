@@ -10,10 +10,14 @@ Working context for the Tauri/Rust side. See `SPEC.md` for the full map.
   `&Connection` (testable) + a thin `#[tauri::command] *_cmd` wrapper that locks
   state and maps errors to `String`.
 - `db.rs`, `models.rs`, `blobs.rs`, `clipboard.rs`, `settings.rs` — see SPEC.
+- `rank.rs` — fractional indexing for sibling order. `key_between(lo, hi)` returns a
+  base-62 key strictly between two neighbours (`None` = open end; both `None` = the
+  first/append key). Pure + unit-tested. `next_position` and `move_node` use it so a
+  reorder rewrites only the moved row's `position`.
 - `portation.rs` — import/export commands. Settings ↔ a JSON file; database ↔ a `zip`
-  (`acm.db` + `blobs/`, via the `zip` crate). Export holds the `Db` lock so the file
+  (`copytree.db` + `blobs/`, via the `zip` crate). Export holds the `Db` lock so the file
   snapshot is between transactions. Import holds the lock across extraction, then swaps
-  the connection in place (`*guard = db::open(...)`) — no restart; only `acm.db`/`blobs/*`
+  the connection in place (`*guard = db::open(...)`) — no restart; only `copytree.db`/`blobs/*`
   entries are extracted (traversal entries skipped).
 - `fonts.rs` — macOS-only; `NSFontManager` family enumeration. It's `MainThreadOnly`,
   so `list_system_fonts` (in `lib.rs`) calls it via `app.run_on_main_thread` and ships
@@ -31,7 +35,11 @@ Working context for the Tauri/Rust side. See `SPEC.md` for the full map.
   is what re-indexes content (trigger is `AFTER UPDATE OF text_content`).
 - **Migrations**: bump via `PRAGMA user_version`; each `SCHEMA_Vn` block is guarded by
   `if version < n`. Never edit an existing block for shipped installs. `SCHEMA_V2` adds
-  `items.language` (text-item highlight language; NULL = auto-detect).
+  `items.language` (text-item highlight language; NULL = auto-detect). `migrate_v3`
+  rewrites `nodes.position` INTEGER→TEXT (fractional keys): can't change a column's
+  affinity in place, so it adds a TEXT column, re-ranks each parent's children by their
+  old order, then drops `idx_nodes_parent`, drops the old column, renames, recreates the
+  index (a column can't be dropped while indexed).
 - **Blobs**: content-addressed (`store_bytes`), deduped by sha256. Do **not** delete
   blobs on overwrite/undo — they may be shared. No GC yet.
 - **Clipboard is macOS-only** (`objc2-app-kit`), deps target-gated to macOS. Type

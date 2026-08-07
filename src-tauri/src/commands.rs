@@ -43,13 +43,16 @@ fn row_to_node(row: &rusqlite::Row<'_>) -> rusqlite::Result<Node> {
     })
 }
 
-/// Next free position among a parent's children (append to the end).
-fn next_position(conn: &Connection, parent_id: Option<i64>) -> rusqlite::Result<i64> {
-    conn.query_row(
-        "SELECT COALESCE(MAX(position) + 1, 0) FROM nodes WHERE parent_id IS ?1",
+/// A fractional-index key that sorts after every current child of `parent_id`
+/// (i.e. append to the end). `MAX(position)` on the TEXT column is the
+/// lexicographically greatest key, which is the last child (see `rank.rs`).
+fn next_position(conn: &Connection, parent_id: Option<i64>) -> rusqlite::Result<String> {
+    let last: Option<String> = conn.query_row(
+        "SELECT MAX(position) FROM nodes WHERE parent_id IS ?1",
         [parent_id],
         |row| row.get(0),
-    )
+    )?;
+    Ok(crate::rank::key_between(last.as_deref(), None))
 }
 
 // ---- pure DB operations (unit-testable without Tauri) ----------------------
@@ -144,8 +147,33 @@ pub fn create_blob_item(
     Ok(node)
 }
 
+/// Resolve a stored `blob_path` to an absolute path under `blobs_dir`, but only
+/// if it is exactly the content-addressed name we ever write (`<64 hex>.<png|gif>`).
+/// A crafted or imported DB could otherwise put a traversal/absolute path here;
+/// `Path::join` with an absolute path replaces the base, so this is defense in
+/// depth behind the asset-protocol scope (`$APPDATA/blobs/**`). Anything else
+/// resolves to an empty path, which simply won't load.
+fn blob_abspath(blobs_dir: &Path, blob_path: Option<&str>) -> String {
+    fn is_content_addressed(name: &str) -> bool {
+        match name.split_once('.') {
+            Some((hash, ext)) => {
+                hash.len() == 64
+                    && hash.bytes().all(|b| b.is_ascii_hexdigit())
+                    && matches!(ext, "png" | "gif")
+            }
+            None => false,
+        }
+    }
+    match blob_path {
+        Some(name) if is_content_addressed(name) => {
+            blobs_dir.join(name).to_string_lossy().into_owned()
+        }
+        _ => String::new(),
+    }
+}
+
 /// Read an item's content for display. Blob paths are resolved to absolute
-/// filesystem paths under `blobs_dir`.
+/// filesystem paths under `blobs_dir` (validated by `blob_abspath`).
 pub fn get_item_content(
     conn: &Connection,
     blobs_dir: &Path,
@@ -162,12 +190,7 @@ pub fn get_item_content(
             let width: Option<i64> = row.get(3)?;
             let height: Option<i64> = row.get(4)?;
             let language: Option<String> = row.get(5)?;
-            let abs = |p: Option<String>| {
-                blobs_dir
-                    .join(p.unwrap_or_default())
-                    .to_string_lossy()
-                    .into_owned()
-            };
+            let abs = |p: Option<String>| blob_abspath(blobs_dir, p.as_deref());
             Ok(match content_type.as_str() {
                 "image" => ItemContent::Image { path: abs(blob_path), width, height },
                 "gif" => ItemContent::Gif { path: abs(blob_path), width, height },
@@ -303,17 +326,73 @@ pub fn delete_node(conn: &Connection, id: i64) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Whether `maybe_descendant` is `ancestor` itself or lies within its subtree —
+/// used to reject moving a group into its own descendant (which would orphan a
+/// cycle). Walks parent links upward from the candidate.
+fn is_self_or_descendant(
+    conn: &Connection,
+    ancestor: i64,
+    maybe_descendant: i64,
+) -> rusqlite::Result<bool> {
+    let mut cur = Some(maybe_descendant);
+    while let Some(node) = cur {
+        if node == ancestor {
+            return Ok(true);
+        }
+        cur = conn
+            .query_row("SELECT parent_id FROM nodes WHERE id = ?1", [node], |r| {
+                r.get::<_, Option<i64>>(0)
+            })
+            .optional()?
+            .flatten();
+    }
+    Ok(false)
+}
+
+/// Fractional-index key of a node, if it exists.
+fn position_of(conn: &Connection, id: i64) -> rusqlite::Result<Option<String>> {
+    conn.query_row("SELECT position FROM nodes WHERE id = ?1", [id], |r| r.get(0))
+        .optional()
+}
+
+/// Reparent/reorder `id` so it sorts between `before_id` and `after_id` among
+/// `new_parent_id`'s children. `before_id`/`after_id` are the neighbours the row
+/// should land between (`None` = that end is open); passing `None` for **both**
+/// appends to the end of the new parent. Returns `Ok(false)` without moving if
+/// the target parent is `id` itself or one of its descendants (a cycle).
 pub fn move_node(
     conn: &Connection,
     id: i64,
     new_parent_id: Option<i64>,
-    new_position: i64,
-) -> rusqlite::Result<()> {
+    before_id: Option<i64>,
+    after_id: Option<i64>,
+) -> rusqlite::Result<bool> {
+    if let Some(parent) = new_parent_id {
+        if is_self_or_descendant(conn, id, parent)? {
+            return Ok(false);
+        }
+    }
+
+    let position = match (before_id, after_id) {
+        (None, None) => next_position(conn, new_parent_id)?,
+        (before, after) => {
+            let lo = match before {
+                Some(b) => position_of(conn, b)?,
+                None => None,
+            };
+            let hi = match after {
+                Some(a) => position_of(conn, a)?,
+                None => None,
+            };
+            crate::rank::key_between(lo.as_deref(), hi.as_deref())
+        }
+    };
+
     conn.execute(
         "UPDATE nodes SET parent_id = ?2, position = ?3, updated_at = ?4 WHERE id = ?1",
-        rusqlite::params![id, new_parent_id, new_position, now_unix()],
+        rusqlite::params![id, new_parent_id, position, now_unix()],
     )?;
-    Ok(())
+    Ok(true)
 }
 
 /// Encode a small gradient PNG so the seed has a real image to render.
@@ -759,10 +838,16 @@ pub fn move_node_cmd(
     db: State<Db>,
     id: i64,
     new_parent_id: Option<i64>,
-    new_position: i64,
+    before_id: Option<i64>,
+    after_id: Option<i64>,
 ) -> CmdResult<()> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
-    move_node(&conn, id, new_parent_id, new_position).map_err(|e| e.to_string())
+    let moved = move_node(&conn, id, new_parent_id, before_id, after_id).map_err(|e| e.to_string())?;
+    if moved {
+        Ok(())
+    } else {
+        Err("cannot move a group into itself or one of its descendants".into())
+    }
 }
 
 #[cfg(test)]
@@ -797,10 +882,11 @@ mod tests {
         let item = create_item(&mut conn, Some(group.id), "Item X", &text("hello")).unwrap();
         assert_eq!(item.parent_id, Some(group.id));
 
-        // Positions increment within a parent.
+        // Fractional-index positions sort later-created siblings after earlier
+        // ones (append), so list order is creation order.
         let item2 = create_item(&mut conn, Some(group.id), "Item Y", &text("world")).unwrap();
-        assert_eq!(item.position, 0);
-        assert_eq!(item2.position, 1);
+        assert!(!item.position.is_empty() && !item2.position.is_empty());
+        assert!(item.position < item2.position);
 
         assert_eq!(list_children(&conn, None).unwrap().len(), 1);
         assert_eq!(list_children(&conn, Some(group.id)).unwrap().len(), 2);
@@ -808,10 +894,65 @@ mod tests {
         rename_node(&conn, item.id, "Renamed X").unwrap();
         assert_eq!(get_node(&conn, item.id).unwrap().unwrap().name, "Renamed X");
 
-        // Move Item Y out to the root.
-        move_node(&conn, item2.id, None, 5).unwrap();
+        // Move Item Y out to the root (append: no neighbours).
+        assert!(move_node(&conn, item2.id, None, None, None).unwrap());
         assert_eq!(list_children(&conn, None).unwrap().len(), 2);
         assert_eq!(list_children(&conn, Some(group.id)).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn reorder_places_node_between_neighbours() {
+        let mut conn = db::open_in_memory().unwrap();
+        let a = create_item(&mut conn, None, "A", &text("a")).unwrap();
+        let b = create_item(&mut conn, None, "B", &text("b")).unwrap();
+        let c = create_item(&mut conn, None, "C", &text("c")).unwrap();
+        // Order is A, B, C.
+        let order = |conn: &Connection| {
+            list_children(conn, None)
+                .unwrap()
+                .into_iter()
+                .map(|n| n.name)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(order(&conn), ["A", "B", "C"]);
+
+        // Move C between A and B → A, C, B.
+        assert!(move_node(&conn, c.id, None, Some(a.id), Some(b.id)).unwrap());
+        assert_eq!(order(&conn), ["A", "C", "B"]);
+
+        // Move A to the very front (before C, no lower neighbour) → keeps A first
+        // only if it sorts before C; here A already leads, so move it to the end.
+        assert!(move_node(&conn, a.id, None, Some(b.id), None).unwrap());
+        assert_eq!(order(&conn), ["C", "B", "A"]);
+    }
+
+    #[test]
+    fn blob_abspath_rejects_non_content_addressed_paths() {
+        let dir = Path::new("/data/blobs");
+        let good = "a".repeat(64) + ".png";
+        assert!(blob_abspath(dir, Some(&good)).ends_with(&good));
+        assert!(blob_abspath(dir, Some(&("b".repeat(64) + ".gif"))).ends_with(".gif"));
+        // Traversal / absolute / wrong shape all resolve to an empty path.
+        assert_eq!(blob_abspath(dir, Some("../../../etc/passwd")), "");
+        assert_eq!(blob_abspath(dir, Some("/etc/passwd")), "");
+        assert_eq!(blob_abspath(dir, Some("blobs/x.png")), "");
+        assert_eq!(blob_abspath(dir, Some("evil.png")), "");
+        assert_eq!(blob_abspath(dir, Some(&("a".repeat(64) + ".exe"))), "");
+        assert_eq!(blob_abspath(dir, None), "");
+    }
+
+    #[test]
+    fn cannot_move_group_into_its_own_descendant() {
+        let mut conn = db::open_in_memory().unwrap();
+        let outer = create_group(&conn, None, "Outer").unwrap();
+        let inner = create_group(&conn, Some(outer.id), "Inner").unwrap();
+        let _leaf = create_item(&mut conn, Some(inner.id), "Leaf", &text("x")).unwrap();
+
+        // Moving Outer into Inner (its descendant) is rejected, tree unchanged.
+        assert!(!move_node(&conn, outer.id, Some(inner.id), None, None).unwrap());
+        assert_eq!(get_node(&conn, outer.id).unwrap().unwrap().parent_id, None);
+        // Into itself is likewise rejected.
+        assert!(!move_node(&conn, outer.id, Some(outer.id), None, None).unwrap());
     }
 
     #[test]
@@ -858,7 +999,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("acm-test-blobs-{nanos}"));
+        let dir = std::env::temp_dir().join(format!("copytree-test-blobs-{nanos}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

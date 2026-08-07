@@ -4,43 +4,43 @@
    palette; Color Scheme in Settings will drive it (PLAN.md §7). */
 :root,
 :root[data-theme="dark"] {
-  --acm-bg: #17181c;
-  --acm-bg-elevated: #202127;
-  --acm-border: #303138;
-  --acm-fg: #e8e8ea;
-  --acm-fg-muted: #9a9ba3;
-  --acm-accent: #6d8cff;
+  --copytree-bg: #17181c;
+  --copytree-bg-elevated: #202127;
+  --copytree-border: #303138;
+  --copytree-fg: #e8e8ea;
+  --copytree-fg-muted: #9a9ba3;
+  --copytree-accent: #6d8cff;
   /* Pre-selection hover tint (click-to-select mode). */
-  --acm-hover: rgba(255, 255, 255, 0.07);
+  --copytree-hover: rgba(255, 255, 255, 0.07);
 }
 
 :root[data-theme="light"] {
-  --acm-bg: #f7f7f8;
-  --acm-bg-elevated: #ffffff;
-  --acm-border: #e2e2e6;
-  --acm-fg: #1a1a1e;
-  --acm-fg-muted: #6b6c74;
-  --acm-accent: #3a5bff;
-  --acm-hover: rgba(0, 0, 0, 0.05);
+  --copytree-bg: #f7f7f8;
+  --copytree-bg-elevated: #ffffff;
+  --copytree-border: #e2e2e6;
+  --copytree-fg: #1a1a1e;
+  --copytree-fg-muted: #6b6c74;
+  --copytree-accent: #3a5bff;
+  --copytree-hover: rgba(0, 0, 0, 0.05);
 }
 
 /* The menu window is transparent (PLAN.md §3); keep the document background
    clear so only the rounded overlay panel is visible. The settings window
-   paints its own solid background via .acm-solid. */
+   paints its own solid background via .copytree-solid. */
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
   background: transparent;
-  color: var(--acm-fg);
+  color: var(--copytree-fg);
   /* Kill the document-level trackpad rubber-band (the whole overlay bouncing
      on an overscroll gesture): the document never scrolls — inner panes do. */
   overflow: hidden;
-  /* --acm-font is set by applyAppearance from the Font setting; when unset the
+  /* --copytree-font is set by applyAppearance from the Font setting; when unset the
      fallback list (the system stack) applies. */
   font-family: var(
-    --acm-font,
+    --copytree-font,
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -51,8 +51,8 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
-.acm-solid {
-  background: var(--acm-bg);
+.copytree-solid {
+  background: var(--copytree-bg);
 }
 
 /* No jelly/elastic overscroll on any scroll container (columns, content pane,
@@ -64,7 +64,7 @@ body,
 
 /* The UI chrome (labels, rows, headers, buttons) is not selectable — Cmd+A must
    not light the app up with a selection. Only editable fields and the content
-   pane (opt in with `.acm-selectable`) allow text selection. */
+   pane (opt in with `.copytree-selectable`) allow text selection. */
 body {
   user-select: none;
   -webkit-user-select: none;
@@ -73,27 +73,27 @@ body {
 
 input,
 textarea,
-.acm-selectable,
-.acm-selectable * {
+.copytree-selectable,
+.copytree-selectable * {
   user-select: text;
   -webkit-user-select: text;
 }
 
-.acm-selectable {
+.copytree-selectable {
   cursor: auto;
 }
 
 /* Column resize splitter: invisible until hovered/dragged. */
-.acm-col-splitter:hover,
-.acm-col-splitter:active {
-  background: var(--acm-accent);
+.copytree-col-splitter:hover,
+.copytree-col-splitter:active {
+  background: var(--copytree-accent);
   opacity: 0.6;
 }
 
 /* highlight.js token colors, theme-aware (self-contained — no external hljs CSS).
    Base values suit the dark theme; the light theme overrides the hues below. */
 .hljs {
-  color: var(--acm-fg);
+  color: var(--copytree-fg);
   background: transparent;
 }
 .hljs-comment,

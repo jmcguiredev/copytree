@@ -8,7 +8,9 @@ pub struct Node {
     pub parent_id: Option<i64>,
     pub kind: String,
     pub name: String,
-    pub position: i64,
+    /// Fractional-index sort key among siblings (see `rank.rs`); order is the
+    /// lexicographic order of these strings.
+    pub position: String,
     pub created_at: i64,
     pub updated_at: i64,
     pub last_used_at: Option<i64>,

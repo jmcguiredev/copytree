@@ -9,7 +9,7 @@ Owns everything that isn't a child component's concern:
   appearance (`loadSettings`→`applyAppearance`), focus the search box, and play the
   open animation (`panelRef.animate`). This is how re-showing the hidden window resets
   state and re-applies appearance on refocus.
-- **Live settings**: also listens for `SETTINGS_CHANGED_EVENT` (`acm://settings-changed`,
+- **Live settings**: also listens for `SETTINGS_CHANGED_EVENT` (`copytree://settings-changed`,
   emitted by `setSetting`) and re-applies appearance without a refocus — so while the
   settings window is open and the overlay stays visible (Rust keeps it open when settings
   is up), scale/font/theme changes update the menu immediately.
@@ -28,7 +28,11 @@ Owns everything that isn't a child component's concern:
   backend — there's no content-driven `setSize` here. `ResizeGrips` (right/bottom/corner)
   call `getCurrentWindow().startResizeDragging(dir)` to resize the borderless window; the
   columns/content flex to fill it and the row scrolls horizontally (see `MenuColumns`).
-- Drag handle uses `data-tauri-drag-region`; double-click maximize is disabled
+- The top row leads with the app logo (`src/assets/icon.svg`, the same art the tray and
+  bundle use), then the `⠿` handle, then the search bar. **Both the logo and the handle
+  are `data-tauri-drag-region`** — you can drag the window by either; the `⠿` handle is
+  just the visible affordance hinting that it's movable.
+- Drag regions use `data-tauri-drag-region`; double-click maximize is disabled
   (`onDoubleClick preventDefault` + `maximizable:false` on the window). The handle
   needs `core:window:allow-start-dragging` in capabilities — `core:default` doesn't
   grant it, and without it the drag is silently denied (no error, just nothing moves).

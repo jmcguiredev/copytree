@@ -72,10 +72,10 @@ export default function ContentPane() {
   return (
     <div
       className="flex min-w-[220px] flex-1 flex-col overflow-hidden"
-      style={{ background: "var(--acm-bg-elevated)" }}
+      style={{ background: "var(--copytree-bg-elevated)" }}
     >
-      <div className="border-b px-3 py-2" style={{ borderColor: "var(--acm-border)" }}>
-        <div className="truncate text-sm font-medium" style={{ color: "var(--acm-fg)" }}>
+      <div className="border-b px-3 py-2" style={{ borderColor: "var(--copytree-border)" }}>
+        <div className="truncate text-sm font-medium" style={{ color: "var(--copytree-fg)" }}>
           {name}
         </div>
         {isText && (
@@ -98,7 +98,7 @@ export default function ContentPane() {
       )}
       {content?.type === "text" && (
         <pre
-          className="acm-selectable hljs min-h-0 flex-1 overflow-auto p-3 font-mono whitespace-pre"
+          className="copytree-selectable hljs min-h-0 flex-1 overflow-auto p-3 font-mono whitespace-pre"
           style={{ background: "transparent", fontSize: `${13 * scale}px`, lineHeight: 1.5 }}
         >
           {highlighted ? (
@@ -109,7 +109,7 @@ export default function ContentPane() {
         </pre>
       )}
       {(content?.type === "image" || content?.type === "gif") && (
-        <div className="acm-selectable min-h-0 flex-1 overflow-auto p-3">
+        <div className="copytree-selectable min-h-0 flex-1 overflow-auto p-3">
           <img
             src={convertFileSrc(content.path)}
             alt=""

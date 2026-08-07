@@ -11,7 +11,7 @@ function recentNode(): Node {
     parentId: null,
     kind: "group",
     name: "Recent Items",
-    position: -1,
+    position: "",
     createdAt: 0,
     updatedAt: 0,
     lastUsedAt: null,
@@ -60,6 +60,8 @@ interface MenuState {
   draft: { col: number; kind: "group" | "item" } | null;
   /** Whether the delete-confirmation modal is open for the focused selectable. */
   pendingDelete: boolean;
+  /** The selectable currently being drag-reordered (null = no active drag). */
+  drag: { id: number; col: number; kind: "group" | "item" } | null;
 
   init: () => Promise<void>;
   reset: () => void;
@@ -88,6 +90,17 @@ interface MenuState {
   closeDelete: () => void;
   removeFocused: () => Promise<void>;
   refreshColumn: (col: number) => Promise<void>;
+  beginDrag: (id: number, col: number, kind: "group" | "item") => void;
+  endDrag: () => void;
+  /** Reparent/reorder `id` between two neighbours (see api.moveNode), then
+   *  refresh the given column indices and focus the moved node in its new home. */
+  moveNode: (
+    id: number,
+    newParentId: number | null,
+    beforeId: number | null,
+    afterId: number | null,
+    refreshCols: number[],
+  ) => Promise<void>;
 }
 
 export function focusedNode(state: MenuState): Node | undefined {
@@ -136,6 +149,7 @@ export const useMenu = create<MenuState>((set, get) => ({
   searchFocus: 0,
   draft: null,
   pendingDelete: false,
+  drag: null,
 
   showItemContent: (id) =>
     set((s) => ({ selectedItemId: id, contentVersion: s.contentVersion + 1 })),
@@ -337,5 +351,36 @@ export const useMenu = create<MenuState>((set, get) => ({
       focus: { col: focus.col, id: s.columns[focus.col]?.nodes[0]?.id ?? null },
       selectedItemId: null,
     }));
+  },
+
+  beginDrag: (id, col, kind) => set({ drag: { id, col, kind } }),
+  endDrag: () => set({ drag: null }),
+
+  moveNode: async (id, newParentId, beforeId, afterId, refreshCols) => {
+    await api.moveNode(id, newParentId, beforeId, afterId);
+    set({ drag: null });
+    // Re-fetch each affected column in place (a column may have gained or lost
+    // the moved node). Skip indices that no longer exist.
+    const cols = [...new Set(refreshCols)].filter((c) => c >= 0).sort((a, b) => a - b);
+    for (const c of cols) {
+      const column = get().columns[c];
+      if (!column) continue;
+      const nodes = await loadColumn(column.parentId);
+      set((s) => {
+        const columns = [...s.columns];
+        if (columns[c]) columns[c] = { parentId: column.parentId, nodes };
+        return { columns };
+      });
+    }
+    // Focus the moved node wherever it now shows (its new column), so the
+    // selection follows the drop.
+    set((s) => {
+      for (let c = 0; c < s.columns.length; c++) {
+        if (s.columns[c].nodes.some((n) => n.id === id)) {
+          return { focus: { col: c, id }, ...contentForFocus(s.columns, c, id) };
+        }
+      }
+      return {};
+    });
   },
 }));

@@ -26,9 +26,9 @@ const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar({ onArr
       }}
       className="h-8 w-full rounded-md border px-3 text-sm outline-none"
       style={{
-        background: "var(--acm-bg-elevated)",
-        borderColor: "var(--acm-border)",
-        color: "var(--acm-fg)",
+        background: "var(--copytree-bg-elevated)",
+        borderColor: "var(--copytree-border)",
+        color: "var(--copytree-fg)",
       }}
     />
   );

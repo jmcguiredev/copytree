@@ -20,7 +20,7 @@ export default function AddRemoveControls() {
 
   const btn =
     "flex h-7 w-7 items-center justify-center rounded-md disabled:opacity-40";
-  const btnStyle = { background: "var(--acm-bg-elevated)", color: "var(--acm-fg)" };
+  const btnStyle = { background: "var(--copytree-bg-elevated)", color: "var(--copytree-fg)" };
 
   return (
     <div className="flex items-center gap-1.5 pt-1">

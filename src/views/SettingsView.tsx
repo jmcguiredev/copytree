@@ -100,7 +100,7 @@ function HotkeyCapture({
       className="min-w-28 rounded-md border px-3 py-1 text-sm"
       style={{
         ...inputStyle,
-        borderColor: capturing ? "var(--acm-accent)" : "var(--acm-border)",
+        borderColor: capturing ? "var(--copytree-accent)" : "var(--copytree-border)",
       }}
     >
       {capturing ? "Press keys…" : formatHotkey(value)}
@@ -129,7 +129,7 @@ function formatHotkey(raw: string): string {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2">
-      <span className="text-sm" style={{ color: "var(--acm-fg)" }}>
+      <span className="text-sm" style={{ color: "var(--copytree-fg)" }}>
         {label}
       </span>
       {children}
@@ -138,9 +138,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const inputStyle = {
-  background: "var(--acm-bg-elevated)",
-  borderColor: "var(--acm-border)",
-  color: "var(--acm-fg)",
+  background: "var(--copytree-bg-elevated)",
+  borderColor: "var(--copytree-border)",
+  color: "var(--copytree-fg)",
 };
 
 // A non-native action button (import/export) styled with the theme tokens; the
@@ -195,7 +195,7 @@ export default function SettingsView() {
   async function exportConfig() {
     try {
       const dest = await saveDialog({
-        defaultPath: "acm-settings.json",
+        defaultPath: "copytree-settings.json",
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
       if (!dest) return;
@@ -227,8 +227,8 @@ export default function SettingsView() {
   async function exportDb() {
     try {
       const dest = await saveDialog({
-        defaultPath: "acm-database.zip",
-        filters: [{ name: "ACM backup", extensions: ["zip"] }],
+        defaultPath: "copytree-database.zip",
+        filters: [{ name: "Copy Tree backup", extensions: ["zip"] }],
       });
       if (!dest) return;
       await api.exportDatabase(dest);
@@ -240,7 +240,7 @@ export default function SettingsView() {
 
   async function importDb() {
     try {
-      const src = await openDialog({ multiple: false, filters: [{ name: "ACM backup", extensions: ["zip"] }] });
+      const src = await openDialog({ multiple: false, filters: [{ name: "Copy Tree backup", extensions: ["zip"] }] });
       if (typeof src !== "string") return;
       await api.importDatabase(src);
       report("Database imported. It'll show next time you open the menu.");
@@ -262,7 +262,7 @@ export default function SettingsView() {
       <Field label={label}>
         <span className="flex items-center gap-2">
           {hint && (
-            <span className="text-xs" style={{ color: "var(--acm-fg-muted)" }}>
+            <span className="text-xs" style={{ color: "var(--copytree-fg-muted)" }}>
               {hint}
             </span>
           )}
@@ -279,12 +279,12 @@ export default function SettingsView() {
   }
 
   return (
-    <div className="acm-solid h-screen w-screen overflow-auto p-8">
-      <h1 className="mb-4 text-lg font-semibold" style={{ color: "var(--acm-fg)" }}>
-        ACM Settings
+    <div className="copytree-solid h-screen w-screen overflow-auto p-8">
+      <h1 className="mb-4 text-lg font-semibold" style={{ color: "var(--copytree-fg)" }}>
+        Copy Tree Settings
       </h1>
 
-      <div className="divide-y" style={{ borderColor: "var(--acm-border)" }}>
+      <div className="divide-y" style={{ borderColor: "var(--copytree-border)" }}>
         <Field label="Color Scheme">
           <Select
             className="w-40"
@@ -405,7 +405,7 @@ export default function SettingsView() {
       </div>
 
       {dataMsg && (
-        <p className="mt-3 text-xs" style={{ color: dataMsg.error ? "#e07a72" : "var(--acm-fg-muted)" }}>
+        <p className="mt-3 text-xs" style={{ color: dataMsg.error ? "#e07a72" : "var(--copytree-fg-muted)" }}>
           {dataMsg.text}
         </p>
       )}

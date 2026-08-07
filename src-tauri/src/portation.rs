@@ -1,6 +1,6 @@
 //! Import / export of the two persistent artifacts, each independently:
 //! - **Settings** (`settings.json`) as a plain JSON file.
-//! - **Database** (the item tree) as a `.zip` bundling `acm.db` **and** the
+//! - **Database** (the item tree) as a `.zip` bundling `copytree.db` **and** the
 //!   `blobs/` directory, so image/gif items survive a round-trip.
 //!
 //! The frontend picks the source/destination path with a native dialog and hands
@@ -52,12 +52,12 @@ pub fn import_settings(app: AppHandle, src: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Bundle `acm.db` + `blobs/*` into a zip at `dest`. Holds the DB lock so the
+/// Bundle `copytree.db` + `blobs/*` into a zip at `dest`. Holds the DB lock so the
 /// snapshot is taken between transactions (the file on disk is then consistent).
 #[tauri::command]
 pub fn export_database(app: AppHandle, db: State<Db>, dest: String) -> Result<(), String> {
     let dir = data_dir(&app)?;
-    let db_path = dir.join("acm.db");
+    let db_path = dir.join("copytree.db");
     let blobs_dir = dir.join("blobs");
 
     let _guard = db.0.lock().map_err(|e| e.to_string())?;
@@ -65,7 +65,7 @@ pub fn export_database(app: AppHandle, db: State<Db>, dest: String) -> Result<()
     let mut zip = ZipWriter::new(file);
     let opts = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
 
-    zip.start_file("acm.db", opts).map_err(|e| e.to_string())?;
+    zip.start_file("copytree.db", opts).map_err(|e| e.to_string())?;
     zip.write_all(&fs::read(&db_path).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
 
@@ -86,13 +86,13 @@ pub fn export_database(app: AppHandle, db: State<Db>, dest: String) -> Result<()
     Ok(())
 }
 
-/// Restore a database export: extract `acm.db` + `blobs/*` over the app data dir
+/// Restore a database export: extract `copytree.db` + `blobs/*` over the app data dir
 /// (replacing them) and reopen the managed connection on the new file. Only our
 /// own entries are extracted, and any traversal (`..`) entry is skipped.
 #[tauri::command]
 pub fn import_database(app: AppHandle, db: State<Db>, src: String) -> Result<(), String> {
     let dir = data_dir(&app)?;
-    let db_path = dir.join("acm.db");
+    let db_path = dir.join("copytree.db");
 
     // Hold the lock across extraction + reopen so no query runs on a half-written
     // file; the old connection is dropped (closed) when we overwrite `*guard`.
@@ -103,7 +103,7 @@ pub fn import_database(app: AppHandle, db: State<Db>, src: String) -> Result<(),
     for i in 0..archive.len() {
         let mut f = archive.by_index(i).map_err(|e| e.to_string())?;
         let name = f.name().replace('\\', "/");
-        let ours = name == "acm.db" || name.starts_with("blobs/");
+        let ours = name == "copytree.db" || name.starts_with("blobs/");
         if !ours || name.contains("..") || name.ends_with('/') {
             continue;
         }

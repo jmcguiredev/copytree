@@ -13,7 +13,7 @@ Working context for the top-level frontend modules. UI pieces are in
   `SearchHit`). Update alongside `models.rs`.
 - `store.ts` — Zustand store (see below).
 - `settings.ts` — `settings.json` access + `applyAppearance`.
-- `index.css` — Tailwind import + `--acm-*` theme tokens (light/dark via `data-theme`).
+- `index.css` — Tailwind import + `--copytree-*` theme tokens (light/dark via `data-theme`).
 
 ## Store (`store.ts`)
 
@@ -39,12 +39,17 @@ Single source of menu UI state:
   unchanged.
 - Gotcha: mutating actions map `RECENT_ID` parent → root (`null`); you can't add into
   the virtual group. Deeper columns are truncated on focus change/selection.
+- `drag {id,col,kind}` — the selectable being drag-reordered (set by `beginDrag` on
+  dragstart, cleared by `endDrag`/after a move). `moveNode(id, newParentId, beforeId,
+  afterId, refreshCols)` calls `api.moveNode`, re-fetches the affected columns in place,
+  and focuses the moved node in its new column. Neighbour ids (not an index) locate the
+  drop; both null = append. See `NodeRow` in `components/CLAUDE.md` for the drop UX.
 
 ## Settings (`settings.ts`)
 
 `loadSettings()` reads all keys (defaults for missing); `setSetting(k,v)` writes+saves;
 `applyAppearance(s)` sets `data-theme`, root font-size (Text Scale), `body{zoom}`
-(overall Scale), the `--acm-font` (Font) and `--acm-accent` (Theme Color, cleared →
+(overall Scale), the `--copytree-font` (Font) and `--copytree-accent` (Theme Color, cleared →
 per-theme default) custom properties, and pushes `contentScale`/`uiScale`/`selectMode`/
 `newItemHotkey`/`newGroupHotkey` into the store. The store file is shared with Rust —
 keep key names in sync with `settings.rs` (the new frontend-only keys aren't read by

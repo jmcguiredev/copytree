@@ -1,10 +1,10 @@
-# SPEC.md — ACM architecture & wiring
+# SPEC.md — Copy Tree architecture & wiring
 
-Architectural reference for ACM (Advanced Clipboard Manager). Headers are kept
+Architectural reference for Copy Tree. Headers are kept
 short and greppable. For per-area working notes see the nested `CLAUDE.md` in each
 source folder. Keep this file current — see "Recycling context" in the root `CLAUDE.md`.
 
-ACM is a macOS menubar utility: a global hotkey opens a borderless, infinitely
+Copy Tree is a macOS menubar utility: a global hotkey opens a borderless, infinitely
 nestable cascading menu at the cursor for storing/retrieving text, image, and
 animated-GIF clipboard snippets.
 
@@ -24,11 +24,18 @@ animated-GIF clipboard snippets.
 Single background process, activation policy **Accessory** (no dock icon, set at
 runtime in `lib.rs` setup). Owns:
 
-- **Tray icon** — menu: Settings…, Quit.
+- **Tray icon** — the tree art, loaded in `lib.rs` via
+  `Image::from_bytes(include_bytes!("../icons/128x128.png"))` (a compile-time file dep,
+  so regenerating the icon forces a rebuild — `default_window_icon()` can go stale).
+  `src-tauri/icons/` is generated from `src/assets/icon.svg` via `pnpm tauri icon`.
+  Menu: Settings…, Quit.
 - **`menu` window** (label `menu`) — the overlay. Declared in `tauri.conf.json`,
   created hidden, shown/hidden but never destroyed. `decorations:false,
   transparent:true, alwaysOnTop, skipTaskbar, resizable:false, maximizable:false,
-  shadow, visible:false`. The **entire cascade is one window's DOM** (search bar +
+  shadow, visible:false`, plus **`dragDropEnabled:false`** — Tauri's native OS
+  file-drop handler otherwise swallows the DOM `drop` event, breaking the HTML5
+  drag-to-reorder (`NodeRow`); we don't drop OS files into the window, so it's safe to
+  turn off. The **entire cascade is one window's DOM** (search bar +
   every column + content pane are sibling divs), which is why blur/Escape closes
   everything and the drag handle moves it all.
 - **`settings` window** (label `settings`) — normal decorated window, created on
@@ -53,7 +60,7 @@ then show + focus. Frontend re-inits the tree and re-applies appearance on
 `schedule_focus_check`: after ~120ms it hides the overlay (saving geometry first)
 **unless** one of our own windows (overlay or settings) still holds focus — so moving
 between overlay ↔ settings keeps it open, but clicking another app closes it. While both
-are open, settings changes broadcast `acm://settings-changed`, which the (possibly
+are open, settings changes broadcast `copytree://settings-changed`, which the (possibly
 unfocused) menu listens for to re-read + re-apply appearance live. `save_menu_geometry`
 persists `menuPosition` (pinned mode) and `menuSize` (always restored on open).
 
@@ -64,7 +71,10 @@ Adjacency-list tree. Schema + triggers live in `db.rs` (`SCHEMA_V1`), applied vi
 
 - **`nodes`** — `id, parent_id (FK ON DELETE CASCADE), kind('group'|'item'), name,
   position, created_at, updated_at, last_used_at`. Indexes on `(parent_id, position)`
-  and `last_used_at`.
+  and `last_used_at`. **`position` is a fractional-index TEXT key** (`rank.rs`): a
+  parent's children are ordered by the plain lexicographic order of these strings, so a
+  reorder rewrites only the moved row (schema v3 converted it from INTEGER; on non-empty
+  DBs it re-ranks each parent's children in their old order).
 - **`items`** — `node_id (PK/FK), content_type('text'|'image'|'gif'), text_content,
   blob_path, blob_hash, byte_size, width, height, language`. `language` (schema v2) is
   the pinned highlight.js language id for text, or NULL to auto-detect at render; paste
@@ -88,10 +98,10 @@ Adjacency-list tree. Schema + triggers live in `db.rs` (`SCHEMA_V1`), applied vi
 
 ## Filesystem layout
 
-Under Tauri `app_data_dir()` = `~/Library/Application Support/com.z3ro.acm/`:
+Under Tauri `app_data_dir()` = `~/Library/Application Support/com.z3ro.copytree/`:
 
 ```
-acm.db          # SQLite (tree, item metadata, FTS index)
+copytree.db          # SQLite (tree, item metadata, FTS index)
 blobs/          # image/gif payloads, <sha256>.<ext>, content-deduped
 settings.json   # tauri-plugin-store
 ```
@@ -112,7 +122,7 @@ dedup, so overwrite/undo **never deletes** blob files (no GC yet).
 - `clipboard.rs` — **macOS only** (`objc2-app-kit`): `NSPasteboard` read/write.
 - `settings.rs` — read `settings.json` for undo/recent/hotkey (Rust-side needs).
 - `portation.rs` — import/export commands: settings as JSON, database as a `zip`
-  bundling `acm.db` + `blobs/` (the `zip` crate). DB import extracts, replaces the
+  bundling `copytree.db` + `blobs/` (the `zip` crate). DB import extracts, replaces the
   files, and swaps the managed connection in place (no restart).
 
 ## Tauri commands (wiring)
@@ -132,7 +142,9 @@ capability entry.
 - `rename_node_cmd` → `api.renameNode`
 - `set_item_language_cmd` → `api.setItemLanguage` (pin/clear a text item's language)
 - `delete_node_cmd` → `api.deleteNode` (cascades)
-- `move_node_cmd` → `api.moveNode`
+- `move_node_cmd` → `api.moveNode` — reparent/reorder a node between two neighbour
+  ids (`before_id`/`after_id`; both null = append). Computes the new fractional key with
+  `rank::key_between`; rejects (errors) a move into the node's own descendant.
 - `copy_item_to_clipboard_cmd` → `api.copyItem` (sets `last_used_at`)
 - `paste_clipboard_into_item_cmd` → `api.pasteIntoItem` (creates image/gif from pasteboard)
 - `undo_paste_cmd` → `api.undoPaste`
@@ -189,7 +201,7 @@ full hljs build is bundled for maximum language coverage. Image/gif render via t
   to match a hotkey at runtime.
 - Appearance applies to the menu on (re)open (re-read, not a live event): `data-theme`,
   root font-size (Text Scale), `body{zoom}` (overall Scale — window `setSize` × `uiScale`
-  to match), `contentScale`, `--acm-font` (Font), and `--acm-accent` (Theme Color; cleared
+  to match), `contentScale`, `--copytree-font` (Font), and `--copytree-accent` (Theme Color; cleared
   → per-theme default). It also seeds behavior state into the store: `selectMode` and the
   two create hotkeys, so those apply live.
 - **Scale lockout guard**: `scale`/`textScale`/`contentScale` are clamped to
@@ -236,13 +248,22 @@ on the monitor `work_area`. All Rust-side geometry is physical px.
 move handle and the `ResizeGrips` — `core:default` only grants window *getters*. Any new
 mutating core window/webview JS API needs its permission added here.
 
+**Hardening** (defense in depth; there is no network/remote surface — see security
+review): `security.csp` is a restrictive policy (`default-src 'self'`; images also allow
+the `asset:`/`asset.localhost` protocol; `style-src` allows `'unsafe-inline'` for the
+heavy inline styles + hljs; `object-src 'none'`). Tauri augments it with the nonces/IPC
+sources it needs. `get_item_content` resolves a stored `blob_path` only if it matches the
+content-addressed shape `<64 hex>.<png|gif>` (`blob_abspath`), so a crafted/imported DB
+can't aim the asset loader outside `blobs/`. DB **import** (`portation.rs`) is zip-slip
+hardened: only `copytree.db`/`blobs/*` entries, no `..`, bytes-copied (no symlinks).
+
 ## Build, test, bundle
 
 - Dev: `pnpm tauri dev`. Frontend build: `pnpm build` (tsc + vite).
 - Tests: `cd src-tauri && cargo test` (data layer, FTS, blob dedup, undo/redo,
   search/recent). Native clipboard + UI interaction are not headless-testable.
-- Bundle: `pnpm tauri build` → `src-tauri/target/release/bundle/{macos/ACM.app,
-  dmg/ACM_0.1.0_aarch64.dmg}`. Unsigned; `category: Utility`.
+- Bundle: `pnpm tauri build` → `src-tauri/target/release/bundle/{macos/Copy Tree.app,
+  dmg/Copy Tree_0.1.0_aarch64.dmg}`. Unsigned; `category: Utility`.
 - Toolchain: Rust ≥ 1.85 (edition2024 transitive dep).
 
 ## Assumptions & deviations

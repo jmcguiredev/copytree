@@ -4,7 +4,8 @@ export interface Node {
   parentId: number | null;
   kind: "group" | "item";
   name: string;
-  position: number;
+  /** Fractional-index sort key among siblings (lexicographic order). */
+  position: string;
   createdAt: number;
   updatedAt: number;
   lastUsedAt: number | null;

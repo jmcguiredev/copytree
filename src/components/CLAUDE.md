@@ -14,14 +14,26 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   `NodeRow` shows `›` for groups and highlights focused / open rows. In the default
   **hover** select mode, hovering a group expands it (`expandGroup(col,node,false)`) and
   hovering an item focuses it; in **click** mode (`store.selectMode`), hovering only paints
-  a pre-selection tint (`--acm-hover`) and the click *selects*, mirroring keyboard focus:
+  a pre-selection tint (`--copytree-hover`) and the click *selects*, mirroring keyboard focus:
   an item focuses, a group focuses + expands but stays put (turns accent, doesn't dive in).
   In hover mode a click still enters a group.
   Focusing an item — hover, arrow keys, or entering a group onto it — opens its content pane
   immediately (no Enter/click needed); the store's `contentForFocus` derives this, so
   `focusRow`/`moveFocus`/`expandGroup` all set the content pane in lockstep with focus.
   **Double-click** a row → inline `RenameInput` (Enter/blur commits, Escape/empty cancels;
-  Recent group excluded). On focus, a row **scroll-paginates** (`useLayoutEffect` on
+  Recent group excluded).
+  **Drag-to-reorder**: the whole row is `draggable` (no handle) — HTML5 DnD, drag state in
+  `store.drag`. (Requires `dragDropEnabled:false` on the menu window in `tauri.conf.json`,
+  else Tauri's native file-drop handler eats the DOM `drop` event — config is compiled in,
+  so restart `pnpm tauri dev` after touching it.) Over a row, the top/bottom half shows a before/after insertion line; a
+  group's middle third shows a nest ring (drop *into* it, appending). Holding over a
+  collapsed group auto-expands it after ~550ms (`expandGroup(col,node,false)`, spring-loaded),
+  independent of hover-select mode. Dropping calls `store.moveNode` with the neighbour ids;
+  the column's empty area (`MenuColumns`) accepts an append-to-end drop (rows `stopPropagation`
+  so it only fires in the gap). The **Recent** row/listing is neither draggable nor a drop
+  target; a group can't nest into itself/a descendant (backend rejects, mirrored in the drop
+  guards).
+  On focus, a row **scroll-paginates** (`useLayoutEffect` on
   `[isFocused, store.openSeq]`; its `offsetParent` is the scroll container): a row below the
   fold jumps to the **top** of the list, a row above the fold to the **bottom** (inverted) —
   direction inferred from geometry. Keying on `openSeq` re-runs it on every overlay (re)open
@@ -44,7 +56,7 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
 - `ColorPicker.tsx` — non-native RGB color selector (Theme Color): a swatch trigger opens a
   portalled popover with custom draggable sliders — R/G/B (each a 0→255 channel gradient)
   plus a **black-level (K)** slider that scales all channels toward black (preserving hue) —
-  plus a hex field; emits `#rrggbb`. Falls back to the live `--acm-accent` when its value is "".
+  plus a hex field; emits `#rrggbb`. Falls back to the live `--copytree-accent` when its value is "".
 - `Select.tsx` / `NumberField.tsx` — non-native form controls used by `SettingsView`
   (the native ones felt clunky). `Select` portals its list to `<body>` (fixed position,
   so the settings scroll container can't clip it) with keyboard nav + type-ahead; with
@@ -62,5 +74,5 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   their name to the file's basename. GIF animation is preserved (raw bytes) by the
   backend; other images are transcoded to PNG.
 - Rows are `<button>`s; keyboard nav is handled globally in `MenuView`, not per-row.
-  Styling uses inline `--acm-*` vars (theme-aware), not Tailwind color classes.
+  Styling uses inline `--copytree-*` vars (theme-aware), not Tailwind color classes.
 - Delete confirm copy must keep warning that groups cascade.

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ACM",
+  "productName": "Copy Tree",
   "version": "0.1.0",
-  "identifier": "com.z3ro.acm",
+  "identifier": "com.z3ro.copytree",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "menu",
-        "title": "ACM",
+        "title": "Copy Tree",
         "width": 640,
         "height": 420,
         "minWidth": 320,
@@ -27,11 +27,12 @@
         "skipTaskbar": true,
         "resizable": true,
         "maximizable": false,
-        "shadow": true
+        "shadow": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost https://asset.localhost data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
       "assetProtocol": {
         "enable": true,
         "scope": ["$APPDATA/blobs/**"]
