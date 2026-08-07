@@ -32,7 +32,10 @@ runtime in `lib.rs` setup). Owns:
 - **`menu` window** (label `menu`) — the overlay. Declared in `tauri.conf.json`,
   created hidden, shown/hidden but never destroyed. `decorations:false,
   transparent:true, alwaysOnTop, skipTaskbar, resizable:false, maximizable:false,
-  shadow, visible:false`. The **entire cascade is one window's DOM** (search bar +
+  shadow, visible:false`, plus **`dragDropEnabled:false`** — Tauri's native OS
+  file-drop handler otherwise swallows the DOM `drop` event, breaking the HTML5
+  drag-to-reorder (`NodeRow`); we don't drop OS files into the window, so it's safe to
+  turn off. The **entire cascade is one window's DOM** (search bar +
   every column + content pane are sibling divs), which is why blur/Escape closes
   everything and the drag handle moves it all.
 - **`settings` window** (label `settings`) — normal decorated window, created on

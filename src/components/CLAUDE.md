@@ -23,7 +23,9 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   **Double-click** a row → inline `RenameInput` (Enter/blur commits, Escape/empty cancels;
   Recent group excluded).
   **Drag-to-reorder**: the whole row is `draggable` (no handle) — HTML5 DnD, drag state in
-  `store.drag`. Over a row, the top/bottom half shows a before/after insertion line; a
+  `store.drag`. (Requires `dragDropEnabled:false` on the menu window in `tauri.conf.json`,
+  else Tauri's native file-drop handler eats the DOM `drop` event — config is compiled in,
+  so restart `pnpm tauri dev` after touching it.) Over a row, the top/bottom half shows a before/after insertion line; a
   group's middle third shows a nest ring (drop *into* it, appending). Holding over a
   collapsed group auto-expands it after ~550ms (`expandGroup(col,node,false)`, spring-loaded),
   independent of hover-select mode. Dropping calls `store.moveNode` with the neighbour ids;
