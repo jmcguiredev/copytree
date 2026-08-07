@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::sync::Mutex;
 
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     ActivationPolicy, AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder,
@@ -340,8 +341,14 @@ pub fn run() {
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let tray_menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
 
+            // Load the tray/menubar icon explicitly from the generated tree art
+            // (`icons/128x128.png`). `include_bytes!` makes it a compile-time file
+            // dependency, so regenerating the icon forces a rebuild — unlike
+            // `default_window_icon()`, which can serve a stale embedded icon.
+            let tray_icon = Image::from_bytes(include_bytes!("../icons/128x128.png"))?;
+
             TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(tray_icon)
                 .tooltip("Copy Tree")
                 .menu(&tray_menu)
                 .show_menu_on_left_click(true)

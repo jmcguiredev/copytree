@@ -9,6 +9,7 @@ import SearchResults from "../components/SearchResults";
 import MenuColumns from "../components/MenuColumns";
 import ContentPane from "../components/ContentPane";
 import AddRemoveControls from "../components/AddRemoveControls";
+import iconUrl from "../assets/icon.svg";
 
 export default function MenuView() {
   const searchRef = useRef<HTMLInputElement>(null);
@@ -181,6 +182,15 @@ export default function MenuView() {
       style={{ background: "var(--copytree-bg)", borderColor: "var(--copytree-border)" }}
     >
       <div className="flex items-center gap-2">
+        <img
+          src={iconUrl}
+          alt="Copy Tree"
+          draggable={false}
+          data-tauri-drag-region
+          onDoubleClick={(e) => e.preventDefault()}
+          className="h-8 w-auto shrink-0 cursor-grab select-none"
+          title="Drag to move"
+        />
         <div
           data-tauri-drag-region
           onDoubleClick={(e) => e.preventDefault()}

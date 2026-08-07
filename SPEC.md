@@ -24,7 +24,11 @@ animated-GIF clipboard snippets.
 Single background process, activation policy **Accessory** (no dock icon, set at
 runtime in `lib.rs` setup). Owns:
 
-- **Tray icon** — menu: Settings…, Quit.
+- **Tray icon** — the tree art, loaded in `lib.rs` via
+  `Image::from_bytes(include_bytes!("../icons/128x128.png"))` (a compile-time file dep,
+  so regenerating the icon forces a rebuild — `default_window_icon()` can go stale).
+  `src-tauri/icons/` is generated from `src/assets/icon.svg` via `pnpm tauri icon`.
+  Menu: Settings…, Quit.
 - **`menu` window** (label `menu`) — the overlay. Declared in `tauri.conf.json`,
   created hidden, shown/hidden but never destroyed. `decorations:false,
   transparent:true, alwaysOnTop, skipTaskbar, resizable:false, maximizable:false,
