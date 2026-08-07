@@ -248,6 +248,15 @@ on the monitor `work_area`. All Rust-side geometry is physical px.
 move handle and the `ResizeGrips` — `core:default` only grants window *getters*. Any new
 mutating core window/webview JS API needs its permission added here.
 
+**Hardening** (defense in depth; there is no network/remote surface — see security
+review): `security.csp` is a restrictive policy (`default-src 'self'`; images also allow
+the `asset:`/`asset.localhost` protocol; `style-src` allows `'unsafe-inline'` for the
+heavy inline styles + hljs; `object-src 'none'`). Tauri augments it with the nonces/IPC
+sources it needs. `get_item_content` resolves a stored `blob_path` only if it matches the
+content-addressed shape `<64 hex>.<png|gif>` (`blob_abspath`), so a crafted/imported DB
+can't aim the asset loader outside `blobs/`. DB **import** (`portation.rs`) is zip-slip
+hardened: only `copytree.db`/`blobs/*` entries, no `..`, bytes-copied (no symlinks).
+
 ## Build, test, bundle
 
 - Dev: `pnpm tauri dev`. Frontend build: `pnpm build` (tsc + vite).

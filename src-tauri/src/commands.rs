@@ -147,8 +147,33 @@ pub fn create_blob_item(
     Ok(node)
 }
 
+/// Resolve a stored `blob_path` to an absolute path under `blobs_dir`, but only
+/// if it is exactly the content-addressed name we ever write (`<64 hex>.<png|gif>`).
+/// A crafted or imported DB could otherwise put a traversal/absolute path here;
+/// `Path::join` with an absolute path replaces the base, so this is defense in
+/// depth behind the asset-protocol scope (`$APPDATA/blobs/**`). Anything else
+/// resolves to an empty path, which simply won't load.
+fn blob_abspath(blobs_dir: &Path, blob_path: Option<&str>) -> String {
+    fn is_content_addressed(name: &str) -> bool {
+        match name.split_once('.') {
+            Some((hash, ext)) => {
+                hash.len() == 64
+                    && hash.bytes().all(|b| b.is_ascii_hexdigit())
+                    && matches!(ext, "png" | "gif")
+            }
+            None => false,
+        }
+    }
+    match blob_path {
+        Some(name) if is_content_addressed(name) => {
+            blobs_dir.join(name).to_string_lossy().into_owned()
+        }
+        _ => String::new(),
+    }
+}
+
 /// Read an item's content for display. Blob paths are resolved to absolute
-/// filesystem paths under `blobs_dir`.
+/// filesystem paths under `blobs_dir` (validated by `blob_abspath`).
 pub fn get_item_content(
     conn: &Connection,
     blobs_dir: &Path,
@@ -165,12 +190,7 @@ pub fn get_item_content(
             let width: Option<i64> = row.get(3)?;
             let height: Option<i64> = row.get(4)?;
             let language: Option<String> = row.get(5)?;
-            let abs = |p: Option<String>| {
-                blobs_dir
-                    .join(p.unwrap_or_default())
-                    .to_string_lossy()
-                    .into_owned()
-            };
+            let abs = |p: Option<String>| blob_abspath(blobs_dir, p.as_deref());
             Ok(match content_type.as_str() {
                 "image" => ItemContent::Image { path: abs(blob_path), width, height },
                 "gif" => ItemContent::Gif { path: abs(blob_path), width, height },
@@ -904,6 +924,21 @@ mod tests {
         // only if it sorts before C; here A already leads, so move it to the end.
         assert!(move_node(&conn, a.id, None, Some(b.id), None).unwrap());
         assert_eq!(order(&conn), ["C", "B", "A"]);
+    }
+
+    #[test]
+    fn blob_abspath_rejects_non_content_addressed_paths() {
+        let dir = Path::new("/data/blobs");
+        let good = "a".repeat(64) + ".png";
+        assert!(blob_abspath(dir, Some(&good)).ends_with(&good));
+        assert!(blob_abspath(dir, Some(&("b".repeat(64) + ".gif"))).ends_with(".gif"));
+        // Traversal / absolute / wrong shape all resolve to an empty path.
+        assert_eq!(blob_abspath(dir, Some("../../../etc/passwd")), "");
+        assert_eq!(blob_abspath(dir, Some("/etc/passwd")), "");
+        assert_eq!(blob_abspath(dir, Some("blobs/x.png")), "");
+        assert_eq!(blob_abspath(dir, Some("evil.png")), "");
+        assert_eq!(blob_abspath(dir, Some(&("a".repeat(64) + ".exe"))), "");
+        assert_eq!(blob_abspath(dir, None), "");
     }
 
     #[test]
