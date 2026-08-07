@@ -1,8 +1,8 @@
-# ACM — Advanced Clipboard Manager
+# Copy Tree
 
 A macOS menubar utility that puts a hotkey-activated, infinitely-nestable context
 menu at your cursor for storing and retrieving text, image, and animated-GIF
-snippets. Dark-mode-first, no dock icon, no clipboard-history snooping — ACM only
+snippets. Dark-mode-first, no dock icon, no clipboard-history snooping — Copy Tree only
 touches the system pasteboard when you explicitly copy or paste.
 
 > Personal-use project. The build is intentionally **unsigned** (see
@@ -40,10 +40,10 @@ touches the system pasteboard when you explicitly copy or paste.
 
 ## GIF animation caveat
 
-When you copy a GIF item, ACM writes the raw GIF bytes to the pasteboard under the
+When you copy a GIF item, Copy Tree writes the raw GIF bytes to the pasteboard under the
 `com.compuserve.gif` UTI along with a still-image fallback. **Whether the
 animation survives depends on the destination app** — chat apps typically keep it,
-document editors often flatten it to a still frame. ACM's responsibility ends at
+document editors often flatten it to a still frame. Copy Tree's responsibility ends at
 putting the correct representations on the pasteboard.
 
 ## Developing
@@ -75,29 +75,29 @@ pnpm tauri build
 This produces the app bundle and installer under
 `src-tauri/target/release/bundle/`:
 
-- `macos/ACM.app`
-- `dmg/ACM_0.1.0_aarch64.dmg`
+- `macos/Copy Tree.app`
+- `dmg/Copy Tree_0.1.0_aarch64.dmg`
 
 ## Installing (unsigned build)
 
 The build is not code-signed or notarized, so Gatekeeper blocks it on first open.
 Either:
 
-- **Right-click** `ACM.app` → **Open**, then confirm in the dialog; or
+- **Right-click** `Copy Tree.app` → **Open**, then confirm in the dialog; or
 - clear the quarantine flag after copying it to `/Applications`:
 
   ```sh
-  xattr -dr com.apple.quarantine /Applications/ACM.app
+  xattr -dr com.apple.quarantine "/Applications/Copy Tree.app"
   ```
 
 Notarization is intentionally out of scope for v1.
 
 ## Where data lives
 
-Everything is under `~/Library/Application Support/com.z3ro.acm/`:
+Everything is under `~/Library/Application Support/com.z3ro.copytree/`:
 
 ```
-acm.db          # SQLite: the tree, item metadata, full-text index
+copytree.db          # SQLite: the tree, item metadata, full-text index
 blobs/          # image and gif payloads, named <sha256>.<ext>
 settings.json   # your settings
 ```
