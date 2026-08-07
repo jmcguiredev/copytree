@@ -68,7 +68,10 @@ Adjacency-list tree. Schema + triggers live in `db.rs` (`SCHEMA_V1`), applied vi
 
 - **`nodes`** — `id, parent_id (FK ON DELETE CASCADE), kind('group'|'item'), name,
   position, created_at, updated_at, last_used_at`. Indexes on `(parent_id, position)`
-  and `last_used_at`.
+  and `last_used_at`. **`position` is a fractional-index TEXT key** (`rank.rs`): a
+  parent's children are ordered by the plain lexicographic order of these strings, so a
+  reorder rewrites only the moved row (schema v3 converted it from INTEGER; on non-empty
+  DBs it re-ranks each parent's children in their old order).
 - **`items`** — `node_id (PK/FK), content_type('text'|'image'|'gif'), text_content,
   blob_path, blob_hash, byte_size, width, height, language`. `language` (schema v2) is
   the pinned highlight.js language id for text, or NULL to auto-detect at render; paste
@@ -136,7 +139,9 @@ capability entry.
 - `rename_node_cmd` → `api.renameNode`
 - `set_item_language_cmd` → `api.setItemLanguage` (pin/clear a text item's language)
 - `delete_node_cmd` → `api.deleteNode` (cascades)
-- `move_node_cmd` → `api.moveNode`
+- `move_node_cmd` → `api.moveNode` — reparent/reorder a node between two neighbour
+  ids (`before_id`/`after_id`; both null = append). Computes the new fractional key with
+  `rank::key_between`; rejects (errors) a move into the node's own descendant.
 - `copy_item_to_clipboard_cmd` → `api.copyItem` (sets `last_used_at`)
 - `paste_clipboard_into_item_cmd` → `api.pasteIntoItem` (creates image/gif from pasteboard)
 - `undo_paste_cmd` → `api.undoPaste`

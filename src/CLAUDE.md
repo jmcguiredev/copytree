@@ -39,6 +39,11 @@ Single source of menu UI state:
   unchanged.
 - Gotcha: mutating actions map `RECENT_ID` parent → root (`null`); you can't add into
   the virtual group. Deeper columns are truncated on focus change/selection.
+- `drag {id,col,kind}` — the selectable being drag-reordered (set by `beginDrag` on
+  dragstart, cleared by `endDrag`/after a move). `moveNode(id, newParentId, beforeId,
+  afterId, refreshCols)` calls `api.moveNode`, re-fetches the affected columns in place,
+  and focuses the moved node in its new column. Neighbour ids (not an index) locate the
+  drop; both null = append. See `NodeRow` in `components/CLAUDE.md` for the drop UX.
 
 ## Settings (`settings.ts`)
 

@@ -19,6 +19,7 @@ mod db;
 mod fonts;
 mod models;
 mod portation;
+mod rank;
 mod settings;
 
 use commands::UndoState;

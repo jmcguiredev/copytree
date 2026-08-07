@@ -21,7 +21,17 @@ Presentational pieces of the menu overlay. State lives in `../store.ts`; see
   immediately (no Enter/click needed); the store's `contentForFocus` derives this, so
   `focusRow`/`moveFocus`/`expandGroup` all set the content pane in lockstep with focus.
   **Double-click** a row → inline `RenameInput` (Enter/blur commits, Escape/empty cancels;
-  Recent group excluded). On focus, a row **scroll-paginates** (`useLayoutEffect` on
+  Recent group excluded).
+  **Drag-to-reorder**: the whole row is `draggable` (no handle) — HTML5 DnD, drag state in
+  `store.drag`. Over a row, the top/bottom half shows a before/after insertion line; a
+  group's middle third shows a nest ring (drop *into* it, appending). Holding over a
+  collapsed group auto-expands it after ~550ms (`expandGroup(col,node,false)`, spring-loaded),
+  independent of hover-select mode. Dropping calls `store.moveNode` with the neighbour ids;
+  the column's empty area (`MenuColumns`) accepts an append-to-end drop (rows `stopPropagation`
+  so it only fires in the gap). The **Recent** row/listing is neither draggable nor a drop
+  target; a group can't nest into itself/a descendant (backend rejects, mirrored in the drop
+  guards).
+  On focus, a row **scroll-paginates** (`useLayoutEffect` on
   `[isFocused, store.openSeq]`; its `offsetParent` is the scroll container): a row below the
   fold jumps to the **top** of the list, a row above the fold to the **bottom** (inverted) —
   direction inferred from geometry. Keying on `openSeq` re-runs it on every overlay (re)open

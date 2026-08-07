@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
-import { useMenu } from "../store";
+import { RECENT_ID, useMenu } from "../store";
 import { setSetting } from "../settings";
 import NodeRow from "./NodeRow";
 
@@ -54,6 +54,20 @@ export default function MenuColumns() {
             key={col}
             className="relative flex shrink-0 flex-col gap-0.5 overflow-y-auto border-r py-1 pr-1"
             style={{ width: columnWidth(columnWidths, col), borderColor: "var(--copytree-border)" }}
+            onDragOver={(e) => {
+              // Empty area below the rows: allow an append-to-end drop. (Rows
+              // stopPropagation on their own drop, so this only fires in the gap.)
+              const d = useMenu.getState().drag;
+              if (!d || column.parentId === RECENT_ID) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(e) => {
+              const d = useMenu.getState().drag;
+              if (!d || column.parentId === RECENT_ID) return;
+              e.preventDefault();
+              void useMenu.getState().moveNode(d.id, column.parentId, null, null, [d.col, col]);
+            }}
           >
             {column.nodes.length === 0 && !drafting ? (
               <div className="px-2.5 py-1.5 text-xs italic" style={{ color: "var(--copytree-fg-muted)" }}>

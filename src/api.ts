@@ -22,8 +22,14 @@ export const api = {
   setItemLanguage: (id: number, language: string | null) =>
     invoke<void>("set_item_language_cmd", { itemId: id, language }),
   deleteNode: (id: number) => invoke<void>("delete_node_cmd", { id }),
-  moveNode: (id: number, newParentId: number | null, newPosition: number) =>
-    invoke<void>("move_node_cmd", { id, newParentId, newPosition }),
+  // Reparent/reorder a node so it lands between `beforeId` and `afterId` among
+  // the new parent's children (null = that end is open; both null = append).
+  moveNode: (
+    id: number,
+    newParentId: number | null,
+    beforeId: number | null,
+    afterId: number | null,
+  ) => invoke<void>("move_node_cmd", { id, newParentId, beforeId, afterId }),
   hideMenu: () => invoke<void>("hide_menu"),
   clampMenu: () => invoke<void>("clamp_menu"),
 
