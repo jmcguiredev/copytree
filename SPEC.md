@@ -28,6 +28,11 @@ runtime in `lib.rs` setup). Owns:
   `Image::from_bytes(include_bytes!("../icons/128x128.png"))` (a compile-time file dep,
   so regenerating the icon forces a rebuild — `default_window_icon()` can go stale).
   `src-tauri/icons/` is generated from `src/assets/icon.svg` via `pnpm tauri icon`.
+  The SVG is 680×500 and `tauri icon` requires a square source, so square a copy
+  (cropped to the art's bounds, and kept transparent — no flattened PNG export, or the
+  menubar shows a white box):
+  `sed 's/width="100%" viewBox="0 0 680 500"/width="1024" height="1024" viewBox="99 -6 552 552"/' src/assets/icon.svg > /tmp/icon-sq.svg && pnpm tauri icon /tmp/icon-sq.svg`
+  (then drop the generated `android/`/`ios/` dirs).
   Menu: Settings…, Quit.
 - **`menu` window** (label `menu`) — the overlay. Declared in `tauri.conf.json`,
   created hidden, shown/hidden but never destroyed. `decorations:false,
